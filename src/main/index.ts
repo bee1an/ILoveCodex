@@ -9,6 +9,7 @@ import {
   type MenuItemConstructorOptions
 } from 'electron'
 import { spawn } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { join } from 'path'
 import { pathToFileURL } from 'node:url'
 import { deflateSync } from 'node:zlib'
@@ -20,6 +21,7 @@ import {
   formatRelativeReset,
   remainingPercent,
   resolveBestAccount,
+  type AppMeta,
   type AccountSummary,
   type AppSettings,
   type AppSnapshot,
@@ -42,6 +44,72 @@ const crcTable = new Uint32Array(256).map((_, index) => {
 
   return crc >>> 0
 })
+
+function localeText(language: AppSettings['language']): {
+  noAccount: string
+  currentAccount: string
+  sessionQuota: string
+  weeklyQuota: string
+  remaining: string
+  resetAt: string
+  noVisibleAccount: string
+  activePrefix: string
+  bestAccount: string
+  openMainWindow: string
+  pollingInterval: string
+  minutes: string
+  quit: string
+  unknownAccount: string
+} {
+  return {
+    noAccount: language === 'en' ? 'No account available' : '当前没有可用账号',
+    currentAccount: language === 'en' ? 'Active account' : '当前使用账号',
+    sessionQuota: language === 'en' ? 'Session quota' : '小时限额',
+    weeklyQuota: language === 'en' ? 'Weekly quota' : '周限额',
+    remaining: language === 'en' ? 'left' : '剩余',
+    resetAt: language === 'en' ? 'Resets in' : '重置时间',
+    noVisibleAccount: language === 'en' ? 'No account to display' : '还没有可显示的账号',
+    activePrefix: language === 'en' ? 'Active · ' : '当前 · ',
+    bestAccount: language === 'en' ? 'Switch to best account' : '切换到最优账号',
+    openMainWindow: language === 'en' ? 'Open main window' : '打开主界面',
+    pollingInterval: language === 'en' ? 'Polling interval' : '轮询间隔',
+    minutes: language === 'en' ? 'min' : '分钟',
+    quit: language === 'en' ? 'Quit' : '退出',
+    unknownAccount: language === 'en' ? 'Unnamed account' : '未命名账号'
+  }
+}
+
+function resolveGithubUrl(): string | null {
+  const envUrl = process.env['ILOVECODEX_GITHUB_URL']
+  if (envUrl) {
+    return envUrl
+  }
+
+  try {
+    const packageJsonPath = join(app.getAppPath(), 'package.json')
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
+      homepage?: string
+      repository?: string | { url?: string }
+    }
+    const repositoryUrl =
+      typeof packageJson.repository === 'string'
+        ? packageJson.repository
+        : packageJson.repository?.url
+    const normalizedRepositoryUrl = repositoryUrl?.replace(/^git\+/, '').replace(/\.git$/, '')
+
+    if (normalizedRepositoryUrl?.includes('github.com')) {
+      return normalizedRepositoryUrl
+    }
+
+    if (packageJson.homepage?.includes('github.com')) {
+      return packageJson.homepage
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
 
 function launchCodexDesktop(workspacePath: string): void {
   const child = spawn('codex', ['app', workspacePath], {
@@ -68,6 +136,13 @@ function buildRendererUrl(query: Record<string, string> = {}): string {
     url.searchParams.set(key, value)
   })
   return url.toString()
+}
+
+function getAppMeta(): AppMeta {
+  return {
+    version: app.getVersion(),
+    githubUrl: resolveGithubUrl()
+  }
 }
 
 function loadRendererWindow(
@@ -107,6 +182,7 @@ function buildTrayTitle(snapshot: AppSnapshot): string {
 
 function buildTrayTooltip(snapshot: AppSnapshot): string {
   const account = resolveTrayAccounts(snapshot)[0]
+  const text = localeText(snapshot.settings.language)
   if (!account) {
     return 'Ilovecodex'
   }
@@ -114,7 +190,7 @@ function buildTrayTooltip(snapshot: AppSnapshot): string {
   const limits = snapshot.usageByAccountId[account.id]
   const shortHour = limits?.primary ? `${remainingPercent(limits.primary.usedPercent)}%` : '--'
   const shortWeek = limits?.secondary ? `${remainingPercent(limits.secondary.usedPercent)}%` : '--'
-  const label = account.email ?? account.name ?? account.accountId ?? '当前账号'
+  const label = account.email ?? account.name ?? account.accountId ?? text.currentAccount
 
   return `${label}\n5h ${shortHour}\nw ${shortWeek}`
 }
@@ -130,8 +206,12 @@ function middleEllipsis(value: string, maxLength = 22): string {
   return `${value.slice(0, prefixLength)}…${value.slice(-suffixLength)}`
 }
 
-function accountLabel(account: AccountSummary): string {
-  const label = account.email ?? account.name ?? account.accountId ?? '未命名账号'
+function accountLabel(
+  account: AccountSummary,
+  language: AppSettings['language'] = 'zh-CN'
+): string {
+  const label =
+    account.email ?? account.name ?? account.accountId ?? localeText(language).unknownAccount
 
   return middleEllipsis(label)
 }
@@ -159,9 +239,10 @@ function buildMenuBar(remaining?: number | null): string {
 
 function buildCurrentUsageMenu(snapshot: AppSnapshot): MenuItemConstructorOptions[] {
   const account = resolveCurrentAccount(snapshot)
+  const text = localeText(snapshot.settings.language)
 
   if (!account) {
-    return [{ label: '当前没有可用账号', enabled: false }]
+    return [{ label: text.noAccount, enabled: false }]
   }
 
   const limits = snapshot.usageByAccountId[account.id]
@@ -169,10 +250,13 @@ function buildCurrentUsageMenu(snapshot: AppSnapshot): MenuItemConstructorOption
   const weeklyRemaining = limits?.secondary ? remainingPercent(limits.secondary.usedPercent) : null
 
   return [
-    { label: `当前使用账号 · ${accountLabel(account)}`, enabled: false },
+    {
+      label: `${text.currentAccount} · ${accountLabel(account, snapshot.settings.language)}`,
+      enabled: false
+    },
     { type: 'separator' },
     {
-      label: `小时限额 · 剩余 ${sessionRemaining == null ? '--' : `${sessionRemaining}%`}`,
+      label: `${text.sessionQuota} · ${text.remaining} ${sessionRemaining == null ? '--' : `${sessionRemaining}%`}`,
       enabled: false
     },
     {
@@ -180,12 +264,12 @@ function buildCurrentUsageMenu(snapshot: AppSnapshot): MenuItemConstructorOption
       enabled: false
     },
     {
-      label: `重置时间 · ${formatRelativeReset(limits?.primary?.resetsAt)}`,
+      label: `${text.resetAt} · ${formatRelativeReset(limits?.primary?.resetsAt, snapshot.settings.language)}`,
       enabled: false
     },
     { type: 'separator' },
     {
-      label: `周限额 · 剩余 ${weeklyRemaining == null ? '--' : `${weeklyRemaining}%`}`,
+      label: `${text.weeklyQuota} · ${text.remaining} ${weeklyRemaining == null ? '--' : `${weeklyRemaining}%`}`,
       enabled: false
     },
     {
@@ -193,7 +277,7 @@ function buildCurrentUsageMenu(snapshot: AppSnapshot): MenuItemConstructorOption
       enabled: false
     },
     {
-      label: `重置时间 · ${formatRelativeReset(limits?.secondary?.resetsAt)}`,
+      label: `${text.resetAt} · ${formatRelativeReset(limits?.secondary?.resetsAt, snapshot.settings.language)}`,
       enabled: false
     }
   ]
@@ -201,9 +285,10 @@ function buildCurrentUsageMenu(snapshot: AppSnapshot): MenuItemConstructorOption
 
 function buildTrayUsageMenu(snapshot: AppSnapshot): MenuItemConstructorOptions[] {
   const accounts = resolveTrayAccounts(snapshot)
+  const text = localeText(snapshot.settings.language)
 
   if (!accounts.length) {
-    return [{ label: '还没有可显示的账号', enabled: false }]
+    return [{ label: text.noVisibleAccount, enabled: false }]
   }
 
   return accounts.map((account) => {
@@ -214,16 +299,17 @@ function buildTrayUsageMenu(snapshot: AppSnapshot): MenuItemConstructorOptions[]
     const weekRemaining = limits?.secondary
       ? `${remainingPercent(limits.secondary.usedPercent)}%`
       : '--'
-    const prefix = account.id === snapshot.activeAccountId ? '当前 · ' : ''
+    const prefix = account.id === snapshot.activeAccountId ? text.activePrefix : ''
 
     return {
-      label: `${prefix}${accountLabel(account)}  h${hourRemaining}  w${weekRemaining}`,
+      label: `${prefix}${accountLabel(account, snapshot.settings.language)}  h${hourRemaining}  w${weekRemaining}`,
       click: () => showMainWindow()
     }
   })
 }
 
 function bestAccountMenuLabel(snapshot: AppSnapshot): string {
+  const text = localeText(snapshot.settings.language)
   const bestAccount = resolveBestAccount(
     snapshot.accounts,
     snapshot.usageByAccountId,
@@ -231,15 +317,16 @@ function bestAccountMenuLabel(snapshot: AppSnapshot): string {
   )
 
   if (!bestAccount) {
-    return '切换到最优账号'
+    return text.bestAccount
   }
 
-  return `切换到最优账号 · ${accountLabel(bestAccount)}`
+  return `${text.bestAccount} · ${accountLabel(bestAccount, snapshot.settings.language)}`
 }
 
 function buildTrayPollingMenu(snapshot: AppSnapshot): MenuItemConstructorOptions[] {
+  const text = localeText(snapshot.settings.language)
   return pollingOptions.map((minutes) => ({
-    label: `${minutes} 分钟`,
+    label: `${minutes} ${text.minutes}`,
     type: 'radio',
     checked: snapshot.settings.usagePollingMinutes === minutes,
     click: () => {
@@ -256,12 +343,13 @@ function buildTrayMenu(snapshot: AppSnapshot): ReturnType<typeof Menu.buildFromT
     snapshot.usageByAccountId,
     snapshot.activeAccountId
   )
+  const text = localeText(snapshot.settings.language)
 
   return Menu.buildFromTemplate([
     ...buildCurrentUsageMenu(snapshot),
     { type: 'separator' },
     {
-      label: '打开主界面',
+      label: text.openMainWindow,
       click: () => showMainWindow()
     },
     {
@@ -281,12 +369,12 @@ function buildTrayMenu(snapshot: AppSnapshot): ReturnType<typeof Menu.buildFromT
     ...buildTrayUsageMenu(snapshot),
     { type: 'separator' },
     {
-      label: '轮询间隔',
+      label: text.pollingInterval,
       submenu: buildTrayPollingMenu(snapshot)
     },
     { type: 'separator' },
     {
-      label: '退出',
+      label: text.quit,
       role: 'quit'
     }
   ])
@@ -314,8 +402,8 @@ function pngChunk(type: string, data: Buffer): Buffer {
 }
 
 function buildTrayPng(hourPercent: number, weekPercent: number, scaleFactor: number): Buffer {
-  const width = 16 * scaleFactor
-  const height = 16 * scaleFactor
+  const width = 18 * scaleFactor
+  const height = 18 * scaleFactor
   const pixels = Buffer.alloc(width * height * 4)
   const setPixel = (x: number, y: number, alpha: number): void => {
     if (x < 0 || x >= width || y < 0 || y >= height || alpha <= 0) {
@@ -367,12 +455,12 @@ function buildTrayPng(hourPercent: number, weekPercent: number, scaleFactor: num
     }
   }
 
-  const paddingX = Math.max(1, Math.round(1.5 * scaleFactor))
+  const paddingX = Math.max(1, Math.round(1.25 * scaleFactor))
   const trackWidth = width - paddingX * 2
-  const topY = Math.round(2.5 * scaleFactor)
-  const topHeight = Math.max(3, Math.round(4 * scaleFactor))
-  const bottomY = Math.round(9.5 * scaleFactor)
-  const bottomHeight = Math.max(2, Math.round(3 * scaleFactor))
+  const topY = Math.round(2.75 * scaleFactor)
+  const topHeight = Math.max(4, Math.round(4.75 * scaleFactor))
+  const bottomY = Math.round(10.25 * scaleFactor)
+  const bottomHeight = Math.max(3, Math.round(3.5 * scaleFactor))
   const topFillWidth =
     hourPercent > 0 ? Math.max(1, Math.round((trackWidth * hourPercent) / 100)) : 0
   const bottomFillWidth =
@@ -502,7 +590,9 @@ function createTray(): void {
           loginInProgress: false,
           settings: {
             usagePollingMinutes: 15,
-            statusBarAccountIds: []
+            statusBarAccountIds: [],
+            language: 'zh-CN',
+            theme: 'light'
           },
           usageByAccountId: {}
         })
@@ -535,6 +625,7 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
   ipcMain.handle('codex:get-snapshot', () => refreshTrayTitle())
+  ipcMain.handle('codex:get-app-meta', () => getAppMeta())
   ipcMain.handle('codex:update-settings', async (_, nextSettings: Partial<AppSettings>) => {
     await accountStore.updateSettings(nextSettings)
     return refreshTrayTitle()
@@ -582,7 +673,6 @@ app.whenReady().then(() => {
     return rateLimits
   })
   ipcMain.handle('codex:start-login', (_, method: LoginMethod) => loginCoordinator.start(method))
-  ipcMain.handle('codex:cancel-login', () => loginCoordinator.cancel())
 
   createWindow()
   if (process.platform === 'darwin') {

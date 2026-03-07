@@ -1,10 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { AppSettings, AppSnapshot, LoginEvent, LoginMethod } from '../shared/codex'
+import type { AppMeta, AppSettings, AppSnapshot, LoginEvent, LoginMethod } from '../shared/codex'
 
 // Custom APIs for renderer
 const codexApp = {
   getSnapshot: () => ipcRenderer.invoke('codex:get-snapshot'),
+  getAppMeta: (): Promise<AppMeta> => ipcRenderer.invoke('codex:get-app-meta'),
   updateSettings: (nextSettings: Partial<AppSettings>) =>
     ipcRenderer.invoke('codex:update-settings', nextSettings),
   openMainWindow: () => ipcRenderer.invoke('codex:open-main-window'),
@@ -17,7 +18,6 @@ const codexApp = {
   readAccountRateLimits: (accountId: string) =>
     ipcRenderer.invoke('codex:read-account-rate-limits', accountId),
   startLogin: (method: LoginMethod) => ipcRenderer.invoke('codex:start-login', method),
-  cancelLogin: () => ipcRenderer.invoke('codex:cancel-login'),
   onSnapshotUpdated: (callback: (snapshot: AppSnapshot) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: AppSnapshot): void =>
       callback(payload)

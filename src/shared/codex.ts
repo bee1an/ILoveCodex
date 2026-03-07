@@ -1,8 +1,17 @@
-export type LoginMethod = 'browser' | 'device'
+export type LoginMethod = 'browser'
+export type AppLanguage = 'zh-CN' | 'en'
+export type AppTheme = 'light' | 'dark' | 'system'
 
 export interface AppSettings {
   usagePollingMinutes: number
   statusBarAccountIds: string[]
+  language: AppLanguage
+  theme: AppTheme
+}
+
+export interface AppMeta {
+  version: string
+  githubUrl: string | null
 }
 
 export interface CreditsSnapshot {
@@ -75,8 +84,6 @@ export interface LoginEvent {
   message: string
   authUrl?: string
   localCallbackUrl?: string
-  verificationUrl?: string
-  deviceCode?: string
   rawOutput?: string
   snapshot?: AppSnapshot
 }
@@ -93,7 +100,10 @@ function normalizeTimestamp(value?: number | null): number | null {
   return value < 1_000_000_000_000 ? value * 1000 : value
 }
 
-export function formatRelativeReset(value?: number | null): string {
+export function formatRelativeReset(
+  value?: number | null,
+  language: AppLanguage = 'zh-CN'
+): string {
   const normalized = normalizeTimestamp(value)
   if (!normalized) {
     return '--'
@@ -101,7 +111,7 @@ export function formatRelativeReset(value?: number | null): string {
 
   const diffMs = normalized - Date.now()
   if (diffMs <= 0) {
-    return '即将重置'
+    return language === 'en' ? 'Soon' : '即将重置'
   }
 
   const totalMinutes = Math.max(1, Math.round(diffMs / 60000))
@@ -110,14 +120,22 @@ export function formatRelativeReset(value?: number | null): string {
   const minutes = totalMinutes % 60
 
   if (days > 0) {
+    if (language === 'en') {
+      return hours > 0 ? `${days}d ${hours}h` : `${days}d`
+    }
+
     return hours > 0 ? `${days}天${hours}小时` : `${days}天`
   }
 
   if (hours > 0) {
+    if (language === 'en') {
+      return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
+    }
+
     return minutes > 0 ? `${hours}小时${minutes}分钟` : `${hours}小时`
   }
 
-  return `${minutes}分钟`
+  return language === 'en' ? `${minutes}m` : `${minutes}分钟`
 }
 
 function accountHasUsage(rateLimits?: AccountRateLimits): boolean {

@@ -1,10 +1,9 @@
-import { randomUUID } from 'node:crypto'
-import { once } from 'node:events'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
+import { createServer, type Server } from 'node:http'
 import { homedir } from 'node:os'
-import { spawn, type ChildProcessByStdio } from 'node:child_process'
 import { dirname, join } from 'node:path'
-import type { Readable } from 'node:stream'
+import { AddressInfo } from 'node:net'
 import { safeStorage } from 'electron'
 
 import type {
@@ -57,24 +56,26 @@ interface LegacyPersistedState {
 function defaultSettings(): AppSettings {
   return {
     usagePollingMinutes: 15,
-    statusBarAccountIds: []
+    statusBarAccountIds: [],
+    language: 'zh-CN',
+    theme: 'light'
   }
 }
 
 interface LoginSession {
   attemptId: string
   method: LoginMethod
-  child: ChildProcessByStdio<null, Readable, Readable>
+  server?: Server
+  abortController?: AbortController
   rawOutput: string
   cancelled: boolean
-  lastProgressKey?: string
 }
 
-const ANSI_ESCAPE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g')
-const BROWSER_AUTH_URL_PATTERN = /https:\/\/auth\.openai\.com\/oauth\/authorize\S+/g
-const LOCAL_CALLBACK_PATTERN = /http:\/\/localhost:\d+\/[^\s]+/g
-const DEVICE_VERIFICATION_URL_PATTERN = /https:\/\/auth\.openai\.com\/codex\/device/g
-const DEVICE_CODE_PATTERN = /\b[A-Z0-9]{4}-[A-Z0-9]{5}\b/g
+const OPENAI_OAUTH_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann'
+const OPENAI_OAUTH_SCOPE =
+  'openid profile email offline_access api.connectors.read api.connectors.invoke'
+const OPENAI_AUTHORIZE_URL = 'https://auth.openai.com/oauth/authorize'
+const OPENAI_TOKEN_URL = 'https://auth.openai.com/oauth/token'
 
 function defaultState(): PersistedState {
   return {
@@ -85,8 +86,16 @@ function defaultState(): PersistedState {
   }
 }
 
-function stripAnsi(value: string): string {
-  return value.replaceAll(ANSI_ESCAPE_PATTERN, '')
+function base64UrlEncode(value: Buffer): string {
+  return value.toString('base64url')
+}
+
+function createPkceVerifier(): string {
+  return base64UrlEncode(randomBytes(48))
+}
+
+function createPkceChallenge(verifier: string): string {
+  return base64UrlEncode(createHash('sha256').update(verifier).digest())
 }
 
 function decodeJwtPayload(token?: string): Record<string, unknown> {
@@ -204,6 +213,11 @@ export class CodexAccountStore {
   async importCurrentAuth(): Promise<void> {
     const auth = await this.readCodexAuthFile()
     await this.upsertAccount(auth, true)
+  }
+
+  async importAuthPayload(auth: CodexAuthPayload): Promise<void> {
+    await this.upsertAccount(auth, true)
+    await this.writeCodexAuthFile(auth)
   }
 
   async activateAccount(accountId: string): Promise<void> {
@@ -435,135 +449,21 @@ export class CodexLoginCoordinator {
     return Boolean(this.currentSession)
   }
 
-  async start(method: LoginMethod): Promise<LoginAttempt> {
+  async start(_method: LoginMethod): Promise<LoginAttempt> {
+    void _method
+
     if (this.currentSession) {
-      if (this.currentSession.method === method) {
+      if (this.currentSession.method === 'browser') {
         return {
           attemptId: this.currentSession.attemptId,
-          method
+          method: 'browser'
         }
       }
 
       await this.cancelAndWait()
     }
 
-    const attemptId = randomUUID()
-    const args = method === 'device' ? ['login', '--device-auth'] : ['login']
-    const child = spawn('codex', args, {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: {
-        ...process.env,
-        ...(method === 'browser' ? { BROWSER: 'false' } : {})
-      }
-    })
-
-    const session: LoginSession = {
-      attemptId,
-      method,
-      child,
-      rawOutput: '',
-      cancelled: false
-    }
-
-    this.currentSession = session
-    this.emit({
-      attemptId,
-      method,
-      phase: 'starting',
-      message:
-        method === 'device' ? 'Started device code login.' : 'Started browser callback login.'
-    })
-
-    const handleChunk = (chunk: Buffer): void => {
-      session.rawOutput += stripAnsi(chunk.toString('utf8'))
-      const progress = this.buildProgressEvent(session)
-
-      if (!progress) {
-        return
-      }
-
-      const progressKey = JSON.stringify(progress)
-      if (session.lastProgressKey === progressKey) {
-        return
-      }
-
-      session.lastProgressKey = progressKey
-      this.emit(progress)
-    }
-
-    child.stdout.on('data', handleChunk)
-    child.stderr.on('data', handleChunk)
-
-    child.on('error', async (error) => {
-      if (this.currentSession?.attemptId !== attemptId) {
-        return
-      }
-
-      this.currentSession = undefined
-      this.emit({
-        attemptId,
-        method,
-        phase: 'error',
-        message: error.message,
-        rawOutput: session.rawOutput,
-        snapshot: await this.store.getSnapshot(false)
-      })
-    })
-
-    child.on('exit', async (code) => {
-      if (this.currentSession?.attemptId !== attemptId) {
-        return
-      }
-
-      this.currentSession = undefined
-
-      if (session.cancelled) {
-        this.emit({
-          attemptId,
-          method,
-          phase: 'cancelled',
-          message: 'Cancelled login flow.',
-          rawOutput: session.rawOutput,
-          snapshot: await this.store.getSnapshot(false)
-        })
-        return
-      }
-
-      if (code !== 0) {
-        this.emit({
-          attemptId,
-          method,
-          phase: 'error',
-          message: `Codex login exited with code ${code}.`,
-          rawOutput: session.rawOutput,
-          snapshot: await this.store.getSnapshot(false)
-        })
-        return
-      }
-
-      try {
-        await this.store.importCurrentAuth()
-        this.emit({
-          attemptId,
-          method,
-          phase: 'success',
-          message: 'Imported the new Codex login into the local account vault.',
-          rawOutput: session.rawOutput,
-          snapshot: await this.store.getSnapshot(false)
-        })
-      } catch (error) {
-        this.emit({
-          attemptId,
-          method,
-          phase: 'error',
-          message: error instanceof Error ? error.message : 'Failed to import the new login state.',
-          rawOutput: session.rawOutput,
-          snapshot: await this.store.getSnapshot(false)
-        })
-      }
-    })
-
-    return { attemptId, method }
+    return this.startBrowserLogin()
   }
 
   async cancel(): Promise<void> {
@@ -571,10 +471,159 @@ export class CodexLoginCoordinator {
       return
     }
 
-    this.currentSession.cancelled = true
-    this.currentSession.child.kill('SIGTERM')
+    const session = this.currentSession
+    session.cancelled = true
+    session.abortController?.abort()
+
+    if (session.server) {
+      await this.closeServer(session.server)
+      this.currentSession = undefined
+    }
   }
 
+  private async startBrowserLogin(): Promise<LoginAttempt> {
+    const attemptId = randomUUID()
+    const state = base64UrlEncode(randomBytes(24))
+    const codeVerifier = createPkceVerifier()
+    const codeChallenge = createPkceChallenge(codeVerifier)
+    const abortController = new AbortController()
+    const server = createServer()
+    const session: LoginSession = {
+      attemptId,
+      method: 'browser',
+      server,
+      abortController,
+      rawOutput: '',
+      cancelled: false
+    }
+
+    this.currentSession = session
+    this.emit({
+      attemptId,
+      method: 'browser',
+      phase: 'starting',
+      message: 'Started browser callback login.'
+    })
+
+    const authCompletion = new Promise<void>((resolve, reject) => {
+      server.on('request', (request, response) => {
+        if (!request.url) {
+          response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
+          response.end('Missing request URL.')
+          return
+        }
+
+        const callbackUrl = new URL(request.url, 'http://127.0.0.1')
+        if (callbackUrl.pathname !== '/auth/callback') {
+          response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
+          response.end('Not found.')
+          return
+        }
+
+        if (callbackUrl.searchParams.get('state') !== state) {
+          response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
+          response.end('Invalid OAuth state.')
+          reject(new Error('Invalid OAuth state returned from OpenAI.'))
+          return
+        }
+
+        const code = callbackUrl.searchParams.get('code')
+        const error = callbackUrl.searchParams.get('error')
+        if (error) {
+          response.writeHead(400, { 'content-type': 'text/html; charset=utf-8' })
+          response.end(
+            '<h1>Login failed</h1><p>You can close this window and return to Ilovecodex.</p>'
+          )
+          reject(new Error(`OpenAI login failed: ${error}`))
+          return
+        }
+
+        if (!code) {
+          response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
+          response.end('Missing authorization code.')
+          reject(new Error('OpenAI did not return an authorization code.'))
+          return
+        }
+
+        response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+        response.end(
+          '<h1>Login complete</h1><p>You can close this tab and return to Ilovecodex.</p>'
+        )
+
+        void this.finishBrowserLogin(attemptId, code, codeVerifier, abortController.signal)
+          .then(resolve)
+          .catch(reject)
+      })
+    })
+    void authCompletion.catch(() => undefined)
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject)
+        server.listen(0, '127.0.0.1', () => resolve())
+      })
+
+      const address = server.address()
+      if (!address || typeof address === 'string') {
+        throw new Error('Failed to start the local OAuth callback server.')
+      }
+
+      const localCallbackUrl = `http://127.0.0.1:${(address as AddressInfo).port}/auth/callback`
+      const authUrl = new URL(OPENAI_AUTHORIZE_URL)
+      authUrl.searchParams.set('response_type', 'code')
+      authUrl.searchParams.set('client_id', OPENAI_OAUTH_CLIENT_ID)
+      authUrl.searchParams.set('redirect_uri', localCallbackUrl)
+      authUrl.searchParams.set('scope', OPENAI_OAUTH_SCOPE)
+      authUrl.searchParams.set('code_challenge', codeChallenge)
+      authUrl.searchParams.set('code_challenge_method', 'S256')
+      authUrl.searchParams.set('id_token_add_organizations', 'true')
+      authUrl.searchParams.set('codex_cli_simplified_flow', 'true')
+      authUrl.searchParams.set('state', state)
+      authUrl.searchParams.set('originator', 'Ilovecodex')
+
+      session.rawOutput = `${authUrl.toString()}\n${localCallbackUrl}\n`
+      this.emit({
+        attemptId,
+        method: 'browser',
+        phase: 'waiting',
+        message: 'Browser login is waiting for the OpenAI callback.',
+        authUrl: authUrl.toString(),
+        localCallbackUrl,
+        rawOutput: session.rawOutput
+      })
+    } catch (error) {
+      if (this.currentSession?.attemptId === attemptId) {
+        this.currentSession = undefined
+      }
+      if (server.listening) {
+        await this.closeServer(server)
+      }
+      throw error
+    }
+
+    void authCompletion.catch(async (error) => {
+      if (this.currentSession?.attemptId !== attemptId) {
+        return
+      }
+
+      this.currentSession = undefined
+      await this.closeServer(server)
+      this.emit({
+        attemptId,
+        method: 'browser',
+        phase: session.cancelled ? 'cancelled' : 'error',
+        message: session.cancelled
+          ? 'Cancelled login flow.'
+          : error instanceof Error
+            ? error.message
+            : 'Browser login failed.',
+        rawOutput: session.rawOutput,
+        snapshot: await this.store.getSnapshot(false)
+      })
+    })
+
+    return { attemptId, method: 'browser' }
+  }
   private async cancelAndWait(): Promise<void> {
     const session = this.currentSession
     if (!session) {
@@ -582,55 +631,110 @@ export class CodexLoginCoordinator {
     }
 
     session.cancelled = true
-    session.child.kill('SIGTERM')
+    session.abortController?.abort()
 
-    try {
-      await once(session.child, 'exit')
-    } catch {
-      // Ignore exit race and let the normal exit handler clear session state.
+    if (session.server) {
+      await this.closeServer(session.server)
+      this.currentSession = undefined
     }
   }
 
-  private buildProgressEvent(session: LoginSession): LoginEvent | null {
-    const authUrl = session.rawOutput.match(BROWSER_AUTH_URL_PATTERN)?.at(-1)
-    const localCallbackUrl = session.rawOutput.match(LOCAL_CALLBACK_PATTERN)?.at(-1)
-    const verificationUrl = session.rawOutput.match(DEVICE_VERIFICATION_URL_PATTERN)?.at(-1)
-    const deviceCode = session.rawOutput.match(DEVICE_CODE_PATTERN)?.at(-1)
-
-    if (session.method === 'browser' && (authUrl || localCallbackUrl)) {
-      return {
-        attemptId: session.attemptId,
-        method: session.method,
-        phase: 'waiting',
-        message: 'Browser login is waiting for the OpenAI callback.',
-        authUrl,
-        localCallbackUrl,
-        rawOutput: session.rawOutput
-      }
+  private async finishBrowserLogin(
+    attemptId: string,
+    code: string,
+    codeVerifier: string,
+    signal: AbortSignal
+  ): Promise<void> {
+    const session = this.currentSession
+    if (!session || session.attemptId !== attemptId) {
+      return
     }
 
-    if (session.method === 'device' && (verificationUrl || deviceCode)) {
-      return {
-        attemptId: session.attemptId,
-        method: session.method,
-        phase: 'waiting',
-        message: 'Device code login is waiting for approval in your browser.',
-        verificationUrl,
-        deviceCode,
-        rawOutput: session.rawOutput
-      }
+    const server = session.server
+    const address = server?.address()
+    if (!server || !address || typeof address === 'string') {
+      throw new Error('The local OAuth callback server is unavailable.')
     }
 
-    if (!session.rawOutput.trim()) {
-      return null
+    const redirectUri = `http://127.0.0.1:${(address as AddressInfo).port}/auth/callback`
+    const auth = await this.exchangeBrowserCode(code, codeVerifier, redirectUri, signal)
+    await this.store.importAuthPayload(auth)
+
+    this.currentSession = undefined
+    await this.closeServer(server)
+    this.emit({
+      attemptId,
+      method: 'browser',
+      phase: 'success',
+      message: 'Imported the new browser login into the local account vault.',
+      rawOutput: session.rawOutput,
+      snapshot: await this.store.getSnapshot(false)
+    })
+  }
+
+  private async exchangeBrowserCode(
+    code: string,
+    codeVerifier: string,
+    redirectUri: string,
+    signal: AbortSignal
+  ): Promise<CodexAuthPayload> {
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: OPENAI_OAUTH_CLIENT_ID,
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier
+    })
+    const response = await fetch(OPENAI_TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded'
+      },
+      body,
+      signal
+    })
+    const raw = await response.text()
+
+    if (!response.ok) {
+      throw new Error(`OpenAI token exchange failed (${response.status}).`)
+    }
+
+    const parsed = JSON.parse(raw) as {
+      access_token?: string
+      refresh_token?: string
+      id_token?: string
     }
 
     return {
-      attemptId: session.attemptId,
-      method: session.method,
-      phase: 'waiting',
-      message: 'Waiting for Codex to finish the login flow.',
-      rawOutput: session.rawOutput
+      OPENAI_API_KEY: null,
+      last_refresh: new Date().toISOString(),
+      tokens: {
+        access_token: parsed.access_token,
+        refresh_token: parsed.refresh_token,
+        id_token: parsed.id_token,
+        account_id: this.extractChatGptAccountId(parsed.id_token, parsed.access_token)
+      }
     }
+  }
+
+  private extractChatGptAccountId(idToken?: string, accessToken?: string): string | undefined {
+    const claims = [decodeJwtPayload(idToken), decodeJwtPayload(accessToken)]
+    for (const payload of claims) {
+      const authClaim = payload['https://api.openai.com/auth']
+      if (
+        authClaim &&
+        typeof authClaim === 'object' &&
+        'chatgpt_account_id' in authClaim &&
+        typeof authClaim.chatgpt_account_id === 'string'
+      ) {
+        return authClaim.chatgpt_account_id
+      }
+    }
+
+    return undefined
+  }
+
+  private async closeServer(server: Server): Promise<void> {
+    await new Promise<void>((resolve) => server.close(() => resolve()))
   }
 }

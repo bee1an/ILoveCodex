@@ -1,6 +1,7 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type {
   AccountRateLimits,
+  AppMeta,
   AppSettings,
   AppSnapshot,
   LoginAttempt,
@@ -10,6 +11,7 @@ import type {
 
 interface CodexDesktopApi {
   getSnapshot: () => Promise<AppSnapshot>
+  getAppMeta: () => Promise<AppMeta>
   updateSettings: (nextSettings: Partial<AppSettings>) => Promise<AppSnapshot>
   openMainWindow: () => Promise<AppSnapshot>
   importCurrentAccount: () => Promise<AppSnapshot>
@@ -19,7 +21,6 @@ interface CodexDesktopApi {
   openAccountInCodex: (accountId: string) => Promise<AppSnapshot>
   readAccountRateLimits: (accountId: string) => Promise<AccountRateLimits>
   startLogin: (method: LoginMethod) => Promise<LoginAttempt>
-  cancelLogin: () => Promise<void>
   onSnapshotUpdated: (callback: (snapshot: AppSnapshot) => void) => () => void
   onLoginEvent: (callback: (event: LoginEvent) => void) => () => void
 }
