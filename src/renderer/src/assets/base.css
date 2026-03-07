@@ -1,0 +1,49 @@
+:root {
+  --paper: #f5efe3;
+  --paper-shadow: rgba(15, 23, 42, 0.12);
+  --ink: #102033;
+  --ink-soft: rgba(16, 32, 51, 0.72);
+  --ink-faint: rgba(16, 32, 51, 0.44);
+  --panel: rgba(255, 250, 242, 0.76);
+  --panel-strong: rgba(255, 251, 245, 0.92);
+  --line: rgba(16, 32, 51, 0.1);
+  --accent: #0d6b63;
+  --accent-deep: #0a4d47;
+  --accent-warm: #d46a2e;
+  --success: #0a7a62;
+  --warn: #a45a19;
+  --danger: #ad3d37;
+  --code-bg: rgba(11, 21, 33, 0.92);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  font-weight: normal;
+}
+
+ul {
+  list-style: none;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(238, 187, 120, 0.35), transparent 24%),
+    radial-gradient(circle at top right, rgba(54, 129, 118, 0.26), transparent 30%),
+    linear-gradient(135deg, #f7f0e4 0%, #f2e7d6 48%, #ebdfd0 100%);
+  line-height: 1.6;
+  font-family:
+    'SF Pro Display',
+    'Segoe UI Variable',
+    'Avenir Next',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
