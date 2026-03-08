@@ -4,8 +4,6 @@
 
 Ilovecodex 是一个用于管理 Codex 会话账号的桌面应用。它提供了一个适合常驻使用的 Electron 图形界面，用来切换账号、查看额度、启动 Codex，也提供了 `ilc` CLI 以便脚本化操作相同流程。
 
-仓库地址: [bee1an/ILoveCodex](https://github.com/bee1an/ILoveCodex)
-
 ![Ilovecodex 截图](./docs/screenshot.png)
 
 ## 功能概览

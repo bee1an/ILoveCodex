@@ -4,8 +4,6 @@
 
 Ilovecodex is a desktop account manager for Codex sessions. It provides a tray-friendly Electron app for switching accounts, checking usage, and launching Codex, and it also ships an `ilc` CLI for scripting the same workflows.
 
-Repository: [bee1an/ILoveCodex](https://github.com/bee1an/ILoveCodex)
-
 ![Ilovecodex screenshot](./docs/screenshot.png)
 
 ## What It Does
