@@ -1,0 +1,6 @@
+interface:
+  display_name: "ILC Changelog"
+  short_description: "Write ilovecodex changelog entries"
+  default_prompt: "Use $ilc-changelog to update CHANGELOG.md for this repository from the previous release tag to the current commit."
+policy:
+  allow_implicit_invocation: true
