@@ -1,6 +1,6 @@
 {
   "name": "ilovecodex",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Ilovecodex desktop account manager for Codex sessions",
   "main": "./out/main/index.js",
   "author": "bee1an",
@@ -21,7 +21,7 @@
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
-    "build:mac": "npm run build && electron-builder --mac",
+    "build:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
