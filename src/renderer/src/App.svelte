@@ -34,6 +34,7 @@
   }
   let loginEvent: LoginEvent | null = null
   let loginStarting = false
+  let showBrowserLoginDetails = true
   let showDeviceLoginDetails = true
   let refreshingAllUsage = false
   let pageError = ''
@@ -233,6 +234,8 @@
   const refreshLoginPortOccupant = async (): Promise<void> => {
     loginPortOccupant = await window.codexApp.getLoginPortOccupant()
   }
+
+  const loginActionBusy = (): boolean => loginStarting || killingLoginPortOccupant
 
   const themeIconClass = (theme: AppTheme): string => {
     switch (theme) {
@@ -448,6 +451,15 @@
   }
 
   const startLogin = async (method: LoginMethod): Promise<void> => {
+    if (
+      method === 'browser' &&
+      loginEvent?.method === 'browser' &&
+      loginEvent.phase === 'waiting'
+    ) {
+      showBrowserLoginDetails = !showBrowserLoginDetails
+      return
+    }
+
     if (method === 'device' && loginEvent?.method === 'device' && loginEvent.phase === 'waiting') {
       showDeviceLoginDetails = !showDeviceLoginDetails
       return
@@ -460,6 +472,10 @@
 
     if (method === 'device') {
       showDeviceLoginDetails = true
+    }
+
+    if (method === 'browser') {
+      showBrowserLoginDetails = true
     }
 
     try {
@@ -649,6 +665,10 @@
     const disposeLogin = window.codexApp.onLoginEvent((event) => {
       loginEvent = event
       loginStarting = event.phase === 'starting'
+
+      if (event.method === 'browser' && event.phase === 'waiting') {
+        showBrowserLoginDetails = true
+      }
 
       if (event.method === 'device' && event.phase === 'waiting') {
         showDeviceLoginDetails = true
@@ -878,7 +898,7 @@
             <button
               class={iconToolbarButton}
               on:click={() => runAction('import', () => window.codexApp.importCurrentAccount())}
-              disabled={snapshot.loginInProgress}
+              disabled={loginActionBusy()}
               aria-label={copyForLanguage().importCurrent}
               title={copyForLanguage().importCurrent}
             >
@@ -887,7 +907,7 @@
             <button
               class={iconToolbarButton}
               on:click={refreshAllRateLimits}
-              disabled={snapshot.loginInProgress || refreshingAllUsage || !snapshot.accounts.length}
+              disabled={loginActionBusy() || refreshingAllUsage || !snapshot.accounts.length}
               aria-label={copyForLanguage().refreshAllQuota}
               title={copyForLanguage().refreshAllQuota}
             >
@@ -898,9 +918,7 @@
             <button
               class={iconToolbarButton}
               on:click={activateBestAccount}
-              disabled={snapshot.loginInProgress ||
-                !bestAccount() ||
-                bestAccount()?.id === snapshot.activeAccountId}
+              disabled={loginActionBusy() || !bestAccount() || bestAccount()?.id === snapshot.activeAccountId}
               aria-label={copyForLanguage().switchBest}
               title={bestAccount()
                 ? bestAccount()?.id === snapshot.activeAccountId
@@ -939,9 +957,9 @@
           </div>
         {/if}
 
-        {#if loginEvent?.authUrl || loginEvent?.localCallbackUrl || (showDeviceLoginDetails && loginEvent?.method === 'device' && (loginEvent?.verificationUrl || loginEvent?.userCode)) || (loginEvent?.phase === 'error' && loginEvent?.rawOutput)}
+        {#if (showBrowserLoginDetails && loginEvent?.method === 'browser' && (loginEvent?.authUrl || loginEvent?.localCallbackUrl)) || (showDeviceLoginDetails && loginEvent?.method === 'device' && (loginEvent?.verificationUrl || loginEvent?.userCode)) || (loginEvent?.phase === 'error' && loginEvent?.rawOutput)}
           <div class="mt-3 grid gap-2 border-t border-black/6 pt-3">
-            {#if loginEvent.method === 'browser' && loginEvent.authUrl}
+            {#if showBrowserLoginDetails && loginEvent.method === 'browser' && loginEvent.authUrl}
               <div class="theme-soft-panel grid gap-2 rounded-lg bg-black/[0.03] p-3">
                 <p class="text-sm text-muted-strong">{copyForLanguage().browserLoginLink}</p>
                 <code
@@ -963,7 +981,7 @@
               </div>
             {/if}
 
-            {#if loginEvent.method === 'browser' && loginEvent.localCallbackUrl}
+            {#if showBrowserLoginDetails && loginEvent.method === 'browser' && loginEvent.localCallbackUrl}
               <p class="text-sm text-muted-strong">{copyForLanguage().waitingCallback}</p>
             {/if}
 
@@ -1162,7 +1180,7 @@
                       runAction(`open:${account.id}`, () =>
                         window.codexApp.openAccountInCodex(account.id)
                       )}
-                    disabled={snapshot.loginInProgress}
+                    disabled={loginActionBusy()}
                     aria-label={`${copyForLanguage().openCodex} · ${accountEmail(account)}`}
                     title={copyForLanguage().openCodex}
                   >
@@ -1174,7 +1192,7 @@
                       runAction(`activate:${account.id}`, () =>
                         window.codexApp.activateAccount(account.id)
                       )}
-                    disabled={snapshot.loginInProgress || snapshot.activeAccountId === account.id}
+                    disabled={loginActionBusy() || snapshot.activeAccountId === account.id}
                     aria-label={`${copyForLanguage().switchAccount} · ${accountEmail(account)}`}
                     title={copyForLanguage().switchAccount}
                   >
@@ -1183,7 +1201,7 @@
                   <button
                     class={iconRowButton}
                     on:click={() => readRateLimits(account, { force: true })}
-                    disabled={snapshot.loginInProgress || usageLoadingByAccountId[account.id]}
+                    disabled={loginActionBusy() || usageLoadingByAccountId[account.id]}
                     aria-label={`${copyForLanguage().refreshQuota} · ${accountEmail(account)}`}
                     title={copyForLanguage().refreshQuota}
                   >
@@ -1192,7 +1210,7 @@
                   <button
                     class={iconRowButton}
                     on:click={() => removeAccount(account)}
-                    disabled={snapshot.loginInProgress}
+                    disabled={loginActionBusy()}
                     aria-label={`${copyForLanguage().deleteSaved} · ${accountEmail(account)}`}
                     title={copyForLanguage().deleteSaved}
                   >
@@ -1222,7 +1240,7 @@
                 <button
                   class={primaryActionButton}
                   on:click={() => startLogin('browser')}
-                  disabled={snapshot.loginInProgress}
+                  disabled={loginActionBusy()}
                 >
                   <span
                     class={`${loginStarting ? 'i-lucide-loader-circle animate-spin' : 'i-lucide-log-in'} h-4.5 w-4.5`}
@@ -1241,7 +1259,7 @@
                 <button
                   class={`${compactGhostButton} px-4 py-3`}
                   on:click={() => runAction('import', () => window.codexApp.importCurrentAccount())}
-                  disabled={snapshot.loginInProgress}
+                  disabled={loginActionBusy()}
                 >
                   <span class="i-lucide-plus h-4.5 w-4.5"></span>
                   <span>{copyForLanguage().importCurrent}</span>
