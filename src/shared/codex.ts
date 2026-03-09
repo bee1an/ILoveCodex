@@ -50,9 +50,17 @@ export interface AccountSummary {
   email?: string
   name?: string
   accountId?: string
+  tagIds: string[]
   createdAt: string
   updatedAt: string
   lastUsedAt?: string
+}
+
+export interface AccountTag {
+  id: string
+  name: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface CurrentSessionSummary {
@@ -65,6 +73,7 @@ export interface CurrentSessionSummary {
 
 export interface AppSnapshot {
   accounts: AccountSummary[]
+  tags: AccountTag[]
   activeAccountId?: string
   currentSession: CurrentSessionSummary | null
   loginInProgress: boolean

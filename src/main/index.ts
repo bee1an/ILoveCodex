@@ -566,6 +566,7 @@ function createTray(): void {
     process.platform === 'darwin'
       ? buildTrayImage({
           accounts: [],
+          tags: [],
           currentSession: null,
           loginInProgress: false,
           settings: {
@@ -662,8 +663,28 @@ app.whenReady().then(async () => {
     await codexServices.accounts.activateBest()
     return refreshTrayTitle()
   })
+  ipcMain.handle('codex:reorder-accounts', async (_, accountIds: string[]) => {
+    await codexServices.accounts.reorder(accountIds)
+    return refreshTrayTitle()
+  })
   ipcMain.handle('codex:remove-account', async (_, accountId: string) => {
     await codexServices.accounts.remove(accountId)
+    return refreshTrayTitle()
+  })
+  ipcMain.handle('codex:update-account-tags', async (_, accountId: string, tagIds: string[]) => {
+    await codexServices.accounts.updateTags(accountId, tagIds)
+    return refreshTrayTitle()
+  })
+  ipcMain.handle('codex:create-tag', async (_, name: string) => {
+    await codexServices.tags.create(name)
+    return refreshTrayTitle()
+  })
+  ipcMain.handle('codex:update-tag', async (_, tagId: string, name: string) => {
+    await codexServices.tags.update(tagId, name)
+    return refreshTrayTitle()
+  })
+  ipcMain.handle('codex:delete-tag', async (_, tagId: string) => {
+    await codexServices.tags.remove(tagId)
     return refreshTrayTitle()
   })
   ipcMain.handle('codex:open-account-in-codex', async (_, accountId: string) => {

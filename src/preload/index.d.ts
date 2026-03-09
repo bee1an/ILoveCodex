@@ -18,7 +18,12 @@ interface CodexDesktopApi {
   importCurrentAccount: () => Promise<AppSnapshot>
   activateAccount: (accountId: string) => Promise<AppSnapshot>
   activateBestAccount: () => Promise<AppSnapshot>
+  reorderAccounts: (accountIds: string[]) => Promise<AppSnapshot>
   removeAccount: (accountId: string) => Promise<AppSnapshot>
+  updateAccountTags: (accountId: string, tagIds: string[]) => Promise<AppSnapshot>
+  createTag: (name: string) => Promise<AppSnapshot>
+  updateTag: (tagId: string, name: string) => Promise<AppSnapshot>
+  deleteTag: (tagId: string) => Promise<AppSnapshot>
   openAccountInCodex: (accountId: string) => Promise<AppSnapshot>
   readAccountRateLimits: (accountId: string) => Promise<AccountRateLimits>
   startLogin: (method: LoginMethod) => Promise<LoginAttempt>

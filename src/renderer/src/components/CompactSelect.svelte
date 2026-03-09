@@ -8,7 +8,7 @@
 
   export let value: string
   export let options: Array<SelectOption<string>> = []
-  export let ariaLabel = '选择'
+  export let ariaLabel = 'Select'
   export let iconClass = 'i-lucide-chevron-down'
 
   const dispatch = createEventDispatcher<{ change: { value: string } }>()

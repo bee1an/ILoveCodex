@@ -7,6 +7,7 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
 import type {
+  AccountTag,
   AccountRateLimits,
   AccountSummary,
   AppSettings,
@@ -36,17 +37,19 @@ interface PersistedAccount extends AccountSummary {
 }
 
 interface PersistedState {
-  version: 2
+  version: 3
   activeAccountId?: string
   accounts: PersistedAccount[]
+  tags: AccountTag[]
   settings: AppSettings
   usageByAccountId: Record<string, AccountRateLimits>
 }
 
 interface LegacyPersistedState {
-  version?: 1
+  version?: 1 | 2
   activeAccountId?: string
   accounts?: PersistedAccount[]
+  tags?: AccountTag[]
   settings?: AppSettings
   usageByAccountId?: Record<string, AccountRateLimits>
 }
@@ -88,11 +91,20 @@ const execFile = promisify(execFileCallback)
 
 function defaultState(): PersistedState {
   return {
-    version: 2,
+    version: 3,
     accounts: [],
+    tags: [],
     settings: defaultSettings(),
     usageByAccountId: {}
   }
+}
+
+function normalizeTagName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ')
+}
+
+function dedupeAccountTagIds(tagIds: string[]): string[] {
+  return [...new Set(tagIds)]
 }
 
 function base64UrlEncode(value: Buffer): string {
@@ -371,6 +383,7 @@ function toAccountSummary(account: PersistedAccount): AccountSummary {
     email: account.email,
     name: account.name,
     accountId: account.accountId,
+    tagIds: account.tagIds,
     createdAt: account.createdAt,
     updatedAt: account.updatedAt,
     lastUsedAt: account.lastUsedAt
@@ -401,6 +414,7 @@ export class CodexAccountStore {
 
     return {
       accounts: state.accounts.map(toAccountSummary),
+      tags: state.tags,
       activeAccountId: resolvedActiveAccountId,
       currentSession,
       loginInProgress,
@@ -432,6 +446,76 @@ export class CodexAccountStore {
       ...state.usageByAccountId,
       [accountId]: rateLimits
     }
+    await this.writeState(state)
+  }
+
+  async createTag(name: string): Promise<AccountTag> {
+    const state = await this.readState()
+    const normalizedName = normalizeTagName(name)
+
+    if (!normalizedName) {
+      throw new Error('Tag name is required.')
+    }
+
+    if (state.tags.some((tag) => tag.name.localeCompare(normalizedName, undefined, { sensitivity: 'accent' }) === 0)) {
+      throw new Error('Tag name already exists.')
+    }
+
+    const now = new Date().toISOString()
+    const tag: AccountTag = {
+      id: randomUUID(),
+      name: normalizedName,
+      createdAt: now,
+      updatedAt: now
+    }
+
+    state.tags = [...state.tags, tag]
+    await this.writeState(state)
+    return tag
+  }
+
+  async updateTag(tagId: string, name: string): Promise<AccountTag> {
+    const state = await this.readState()
+    const tag = state.tags.find((item) => item.id === tagId)
+    const normalizedName = normalizeTagName(name)
+
+    if (!tag) {
+      throw new Error('Tag not found.')
+    }
+
+    if (!normalizedName) {
+      throw new Error('Tag name is required.')
+    }
+
+    if (
+      state.tags.some(
+        (item) =>
+          item.id !== tagId &&
+          item.name.localeCompare(normalizedName, undefined, { sensitivity: 'accent' }) === 0
+      )
+    ) {
+      throw new Error('Tag name already exists.')
+    }
+
+    tag.name = normalizedName
+    tag.updatedAt = new Date().toISOString()
+    await this.writeState(state)
+    return tag
+  }
+
+  async deleteTag(tagId: string): Promise<void> {
+    const state = await this.readState()
+
+    if (!state.tags.some((tag) => tag.id === tagId)) {
+      throw new Error('Tag not found.')
+    }
+
+    state.tags = state.tags.filter((tag) => tag.id !== tagId)
+    state.accounts = state.accounts.map((account) => ({
+      ...account,
+      tagIds: account.tagIds.filter((item) => item !== tagId)
+    }))
+
     await this.writeState(state)
   }
 
@@ -487,6 +571,24 @@ export class CodexAccountStore {
     return toAccountSummary(account)
   }
 
+  async updateAccountTags(accountId: string, tagIds: string[]): Promise<void> {
+    const state = await this.readState()
+    const account = state.accounts.find((item) => item.id === accountId)
+
+    if (!account) {
+      throw new Error('Account not found.')
+    }
+
+    const nextTagIds = dedupeAccountTagIds(tagIds)
+    if (!nextTagIds.every((tagId) => state.tags.some((tag) => tag.id === tagId))) {
+      throw new Error('One or more tags do not exist.')
+    }
+
+    account.tagIds = nextTagIds
+    account.updatedAt = new Date().toISOString()
+    await this.writeState(state)
+  }
+
   async removeAccount(accountId: string): Promise<void> {
     const state = await this.readState()
     state.accounts = state.accounts.filter((item) => item.id !== accountId)
@@ -495,6 +597,32 @@ export class CodexAccountStore {
       state.activeAccountId = undefined
     }
 
+    await this.writeState(state)
+  }
+
+  async reorderAccounts(accountIds: string[]): Promise<void> {
+    const state = await this.readState()
+
+    if (accountIds.length !== state.accounts.length) {
+      throw new Error('Account reorder payload does not match saved accounts.')
+    }
+
+    const accountsById = new Map(state.accounts.map((account) => [account.id, account]))
+    const reorderedAccounts = accountIds.map((accountId) => {
+      const account = accountsById.get(accountId)
+      if (!account) {
+        throw new Error(`Account not found: ${accountId}`)
+      }
+
+      accountsById.delete(accountId)
+      return account
+    })
+
+    if (accountsById.size) {
+      throw new Error('Account reorder payload is missing saved accounts.')
+    }
+
+    state.accounts = reorderedAccounts
     await this.writeState(state)
   }
 
@@ -551,6 +679,7 @@ export class CodexAccountStore {
       existing.email = summary.email
       existing.name = summary.name
       existing.accountId = summary.accountId
+      existing.tagIds = dedupeAccountTagIds(existing.tagIds ?? [])
       existing.updatedAt = now
       existing.authPayload = payload
       if (makeActive) {
@@ -562,6 +691,7 @@ export class CodexAccountStore {
         email: summary.email,
         name: summary.name,
         accountId: summary.accountId,
+        tagIds: [],
         createdAt: now,
         updatedAt: now,
         lastUsedAt: makeActive ? now : undefined,
@@ -615,8 +745,12 @@ export class CodexAccountStore {
       return {
         ...defaultState(),
         ...parsed,
-        version: 2,
-        accounts: parsed.accounts ?? [],
+        version: 3,
+        accounts: (parsed.accounts ?? []).map((account) => ({
+          ...account,
+          tagIds: dedupeAccountTagIds(account.tagIds ?? [])
+        })),
+        tags: parsed.tags ?? [],
         settings: {
           ...defaultSettings(),
           ...('settings' in parsed ? parsed.settings : {})

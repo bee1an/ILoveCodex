@@ -13,6 +13,7 @@ import {
 import { AccountRateLimitLookupError, readAccountRateLimits } from './codex-app-server'
 import {
   resolveBestAccount,
+  type AccountTag,
   type AccountRateLimits,
   type AccountSummary,
   type AppSettings,
@@ -196,8 +197,16 @@ export interface CodexServices {
     importCurrent(): Promise<AppSnapshot>
     activate(accountId: string): Promise<AppSnapshot>
     activateBest(): Promise<AppSnapshot>
+    reorder(accountIds: string[]): Promise<AppSnapshot>
     remove(accountId: string): Promise<AppSnapshot>
+    updateTags(accountId: string, tagIds: string[]): Promise<AppSnapshot>
     get(accountId: string): Promise<AccountSummary>
+  }
+  tags: {
+    create(name: string): Promise<AppSnapshot>
+    update(tagId: string, name: string): Promise<AppSnapshot>
+    remove(tagId: string): Promise<AppSnapshot>
+    getAll(): Promise<AccountTag[]>
   }
   session: {
     current(): Promise<CurrentSessionSummary | null>
@@ -311,11 +320,34 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
         await store.activateAccount(bestAccount.id)
         return getSnapshot()
       },
+      reorder: async (accountIds) => {
+        await store.reorderAccounts(accountIds)
+        return getSnapshot()
+      },
       remove: async (accountId) => {
         await store.removeAccount(accountId)
         return getSnapshot()
       },
+      updateTags: async (accountId, tagIds) => {
+        await store.updateAccountTags(accountId, tagIds)
+        return getSnapshot()
+      },
       get: (accountId) => store.getAccountSummary(accountId)
+    },
+    tags: {
+      create: async (name) => {
+        await store.createTag(name)
+        return getSnapshot()
+      },
+      update: async (tagId, name) => {
+        await store.updateTag(tagId, name)
+        return getSnapshot()
+      },
+      remove: async (tagId) => {
+        await store.deleteTag(tagId)
+        return getSnapshot()
+      },
+      getAll: async () => (await getSnapshot()).tags
     },
     session: {
       current: async () => (await getSnapshot()).currentSession

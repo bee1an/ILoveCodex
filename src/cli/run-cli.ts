@@ -1,7 +1,9 @@
 import type {
   AccountRateLimits,
+  AccountTag,
   AccountSummary,
   AppSettings,
+  AppSnapshot,
   CliAccountListPayload,
   CliLoginResult,
   CliResult,
@@ -126,6 +128,12 @@ Usage:
   ilc account activate <account-id> [--json]
   ilc account best [--json]
   ilc account remove <account-id> [--json]
+  ilc tag list [--json]
+  ilc tag create <name> [--json]
+  ilc tag rename <tag-id> <name> [--json]
+  ilc tag remove <tag-id> [--json]
+  ilc tag assign <account-id> <tag-id> [--json]
+  ilc tag unassign <account-id> <tag-id> [--json]
   ilc session current [--json]
   ilc usage read [account-id] [--json]
   ilc login browser [--json] [--no-open] [--timeout <sec>]
@@ -158,6 +166,14 @@ function sessionLabel(session: CurrentSessionSummary | null): string {
   }
 
   return session.email ?? session.name ?? session.accountId ?? 'current'
+}
+
+function tagLabel(tag?: Pick<AccountTag, 'id' | 'name'> | null): string {
+  if (!tag) {
+    return 'unknown'
+  }
+
+  return tag.name || tag.id
 }
 
 function printIfNeeded(message: string, quiet: boolean): void {
@@ -248,6 +264,21 @@ function printUsage(rateLimits: AccountRateLimits, quiet: boolean): void {
     console.log(
       `Credits: ${rateLimits.credits.unlimited ? 'unlimited' : rateLimits.credits.balance ?? '--'}`
     )
+  }
+}
+
+function printTags(tags: AccountTag[], quiet: boolean): void {
+  if (quiet) {
+    return
+  }
+
+  if (!tags.length) {
+    console.log('No tags')
+    return
+  }
+
+  for (const tag of tags) {
+    console.log(`${tag.id}  ${tag.name}`)
   }
 }
 
@@ -350,6 +381,24 @@ async function waitForLoginResult(
   })
 }
 
+function getSnapshotAccount(snapshot: AppSnapshot, accountId: string): AccountSummary {
+  const account = snapshot.accounts.find((item) => item.id === accountId)
+  if (!account) {
+    throw new CliError(`Unknown account-id: ${accountId}`, EXIT_USAGE)
+  }
+
+  return account
+}
+
+function getSnapshotTag(snapshot: AppSnapshot, tagId: string): AccountTag {
+  const tag = snapshot.tags.find((item) => item.id === tagId)
+  if (!tag) {
+    throw new CliError(`Unknown tag-id: ${tagId}`, EXIT_USAGE)
+  }
+
+  return tag
+}
+
 async function execute(runtime: CliRuntime, argv: string[]): Promise<{ code: number; payload?: CliResult<unknown> }> {
   const { flags, positionals } = parseFlags(argv)
   const silent = flags.quiet || flags.json
@@ -416,6 +465,96 @@ async function execute(runtime: CliRuntime, argv: string[]): Promise<{ code: num
       const session = await runtime.services.session.current()
       printIfNeeded(`Current session: ${sessionLabel(session)}`, silent)
       return { code: EXIT_OK, payload: toCliResult(session) }
+    }
+    case 'tag': {
+      switch (subcommand) {
+        case 'list': {
+          const tags = await runtime.services.tags.getAll()
+          printTags(tags, silent)
+          return { code: EXIT_OK, payload: toCliResult(tags) }
+        }
+        case 'create': {
+          const name = rest.join(' ').trim()
+          if (!name) {
+            throw new CliError('Missing tag name', EXIT_USAGE)
+          }
+
+          const snapshot = await runtime.services.tags.create(name)
+          const createdTag = snapshot.tags.find((tag) => tag.name === name) ?? snapshot.tags.at(-1) ?? null
+          printIfNeeded(`Created tag: ${tagLabel(createdTag)}`, silent)
+          return { code: EXIT_OK, payload: toCliResult(snapshot) }
+        }
+        case 'rename': {
+          const tagId = rest[0]
+          const name = rest.slice(1).join(' ').trim()
+          if (!tagId) {
+            throw new CliError('Missing tag-id', EXIT_USAGE)
+          }
+          if (!name) {
+            throw new CliError('Missing tag name', EXIT_USAGE)
+          }
+
+          const snapshot = await runtime.services.tags.update(tagId, name)
+          const updatedTag = getSnapshotTag(snapshot, tagId)
+          printIfNeeded(`Renamed tag: ${tagLabel(updatedTag)}`, silent)
+          return { code: EXIT_OK, payload: toCliResult(snapshot) }
+        }
+        case 'remove': {
+          const tagId = rest[0]
+          if (!tagId) {
+            throw new CliError('Missing tag-id', EXIT_USAGE)
+          }
+
+          const snapshot = await runtime.services.accounts.list()
+          const tag = getSnapshotTag(snapshot, tagId)
+          const updatedSnapshot = await runtime.services.tags.remove(tagId)
+          printIfNeeded(`Removed tag: ${tagLabel(tag)}`, silent)
+          return { code: EXIT_OK, payload: toCliResult(updatedSnapshot) }
+        }
+        case 'assign':
+        case 'unassign': {
+          const accountId = rest[0]
+          const tagId = rest[1]
+          if (!accountId) {
+            throw new CliError('Missing account-id', EXIT_USAGE)
+          }
+          if (!tagId) {
+            throw new CliError('Missing tag-id', EXIT_USAGE)
+          }
+
+          const snapshot = await runtime.services.accounts.list()
+          const account = getSnapshotAccount(snapshot, accountId)
+          const tag = getSnapshotTag(snapshot, tagId)
+          const hasTag = account.tagIds.includes(tagId)
+          const nextTagIds =
+            subcommand === 'assign'
+              ? hasTag
+                ? account.tagIds
+                : [...account.tagIds, tagId]
+              : account.tagIds.filter((id) => id !== tagId)
+
+          if (subcommand === 'assign' && hasTag) {
+            printIfNeeded(`Tag already assigned: ${tagLabel(tag)} -> ${accountLabel(account)}`, silent)
+            return { code: EXIT_OK, payload: toCliResult(snapshot) }
+          }
+
+          if (subcommand === 'unassign' && nextTagIds.length === account.tagIds.length) {
+            printIfNeeded(`Tag already removed: ${tagLabel(tag)} -> ${accountLabel(account)}`, silent)
+            return { code: EXIT_OK, payload: toCliResult(snapshot) }
+          }
+
+          const updatedSnapshot = await runtime.services.accounts.updateTags(accountId, nextTagIds)
+          printIfNeeded(
+            `${
+              subcommand === 'assign' ? 'Assigned' : 'Removed'
+            } tag: ${tagLabel(tag)} ${subcommand === 'assign' ? '->' : '<-'} ${accountLabel(account)}`,
+            silent
+          )
+          return { code: EXIT_OK, payload: toCliResult(updatedSnapshot) }
+        }
+        default:
+          throw new CliError('Unknown tag command', EXIT_USAGE)
+      }
     }
     case 'usage': {
       if (subcommand !== 'read') {

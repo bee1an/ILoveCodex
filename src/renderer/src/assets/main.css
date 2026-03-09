@@ -40,13 +40,8 @@ button {
   cursor: pointer;
   padding: 0.9rem 1.2rem;
   transition:
-    transform 140ms ease,
     background-color 140ms ease,
     opacity 140ms ease;
-}
-
-button:hover:not(:disabled) {
-  transform: translateY(-1px);
 }
 
 button:disabled {

@@ -19,7 +19,13 @@ const codexApp = {
   importCurrentAccount: () => ipcRenderer.invoke('codex:import-current-account'),
   activateAccount: (accountId: string) => ipcRenderer.invoke('codex:activate-account', accountId),
   activateBestAccount: () => ipcRenderer.invoke('codex:activate-best-account'),
+  reorderAccounts: (accountIds: string[]) => ipcRenderer.invoke('codex:reorder-accounts', accountIds),
   removeAccount: (accountId: string) => ipcRenderer.invoke('codex:remove-account', accountId),
+  updateAccountTags: (accountId: string, tagIds: string[]) =>
+    ipcRenderer.invoke('codex:update-account-tags', accountId, tagIds),
+  createTag: (name: string) => ipcRenderer.invoke('codex:create-tag', name),
+  updateTag: (tagId: string, name: string) => ipcRenderer.invoke('codex:update-tag', tagId, name),
+  deleteTag: (tagId: string) => ipcRenderer.invoke('codex:delete-tag', tagId),
   openAccountInCodex: (accountId: string) =>
     ipcRenderer.invoke('codex:open-account-in-codex', accountId),
   readAccountRateLimits: (accountId: string) =>

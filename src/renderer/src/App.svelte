@@ -11,6 +11,7 @@
     AppLanguage,
     AppMeta,
     AppTheme,
+    AccountTag,
     AccountRateLimits,
     AccountSummary,
     AppSnapshot,
@@ -22,6 +23,7 @@
 
   let snapshot: AppSnapshot = {
     accounts: [],
+    tags: [],
     currentSession: null,
     loginInProgress: false,
     settings: {
@@ -233,6 +235,42 @@
     }
 
     await runAction(`remove:${account.id}`, () => window.codexApp.removeAccount(account.id))
+  }
+
+  const reorderAccounts = async (accountIds: string[]): Promise<void> => {
+    if (
+      accountIds.length !== snapshot.accounts.length ||
+      accountIds.every((accountId, index) => accountId === snapshot.accounts[index]?.id)
+    ) {
+      return
+    }
+
+    await runAction('accounts:reorder', () => window.codexApp.reorderAccounts(accountIds))
+  }
+
+  const createTag = async (name: string): Promise<void> => {
+    await runAction(`tags:create:${name}`, () => window.codexApp.createTag(name))
+  }
+
+  const updateTag = async (tag: AccountTag, name: string): Promise<void> => {
+    await runAction(`tags:update:${tag.id}`, () => window.codexApp.updateTag(tag.id, name))
+  }
+
+  const deleteTag = async (tag: AccountTag): Promise<void> => {
+    await runAction(`tags:delete:${tag.id}`, () => window.codexApp.deleteTag(tag.id))
+  }
+
+  const updateAccountTags = async (account: AccountSummary, tagIds: string[]): Promise<void> => {
+    if (
+      tagIds.length === account.tagIds.length &&
+      tagIds.every((tagId, index) => tagId === account.tagIds[index])
+    ) {
+      return
+    }
+
+    await runAction(`account-tags:${account.id}`, () =>
+      window.codexApp.updateAccountTags(account.id, tagIds)
+    )
   }
 
   const copyText = async (value?: string): Promise<void> => {
@@ -517,6 +555,7 @@
         copy={copyForLanguage()}
         language={snapshot.settings.language}
         accounts={snapshot.accounts}
+        tags={snapshot.tags}
         activeAccountId={snapshot.activeAccountId}
         {usageByAccountId}
         {usageLoadingByAccountId}
@@ -526,6 +565,11 @@
           runAction(`open:${accountId}`, () => window.codexApp.openAccountInCodex(accountId))}
         activateAccount={(accountId) =>
           runAction(`activate:${accountId}`, () => window.codexApp.activateAccount(accountId))}
+        {reorderAccounts}
+        {createTag}
+        {updateTag}
+        {deleteTag}
+        {updateAccountTags}
         refreshAccountUsage={(account) => readRateLimits(account, { force: true })}
         {removeAccount}
         {startLogin}
