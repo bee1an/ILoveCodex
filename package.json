@@ -1,6 +1,6 @@
 {
   "name": "ilovecodex",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Ilovecodex desktop account manager for Codex sessions",
   "main": "./out/main/index.js",
   "author": "bee1an",
