@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.6 - 2026-03-11
+
+This patch release fixes the desktop settings flow around update actions and isolated Codex launch configuration.
+
+- Fixed the Windows multi-open Codex executable override field so typed paths no longer get reset while editing.
+- Improved the settings panel update action so checking, download, restart-to-install, and GitHub download states all stay visible in one place.
+- Kept desktop update actions wired through the main app state so the Hero panel can trigger the correct next step for each update flow.
+
 ## 0.2.5 - 2026-03-11
 
 This patch release expands isolated Codex usage and improves how desktop updates surface across macOS and Windows.
