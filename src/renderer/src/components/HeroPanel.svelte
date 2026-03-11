@@ -38,16 +38,48 @@
   export let updateCheckForUpdatesOnStartup: (enabled: boolean) => void
   export let updateCodexDesktopExecutablePath: (value: string) => Promise<void>
   export let checkForUpdates: () => void
+  export let downloadUpdate: () => Promise<void>
+  export let installUpdate: () => Promise<void>
   export let copyAuthUrl: () => void
   export let copyDeviceCode: () => void
   export let openExternalLink: (url?: string) => void
 
-  const canCheckForUpdates = (): boolean =>
-    updateState.status !== 'checking' &&
-    updateState.status !== 'downloading' &&
-    updateState.status !== 'available' &&
-    updateState.status !== 'downloaded' &&
-    updateState.status !== 'unsupported'
+  const updateActionLabel = (): string => {
+    switch (updateState.status) {
+      case 'checking':
+        return copy.checkingUpdates
+      case 'available':
+        return updateState.delivery === 'external'
+          ? copy.openReleasePage(updateState.availableVersion)
+          : copy.downloadUpdate(updateState.availableVersion)
+      case 'downloaded':
+        return copy.restartToInstallUpdate
+      default:
+        return copy.checkUpdates
+    }
+  }
+
+  const updateActionDisabled = (): boolean =>
+    updateState.status === 'checking' ||
+    updateState.status === 'downloading' ||
+    updateState.status === 'unsupported'
+
+  const runUpdateAction = (): void => {
+    switch (updateState.status) {
+      case 'available':
+        void downloadUpdate()
+        return
+      case 'downloaded':
+        void installUpdate()
+        return
+      case 'checking':
+      case 'downloading':
+      case 'unsupported':
+        return
+      default:
+        void checkForUpdates()
+    }
+  }
 
   let providerMutationBusy = false
   let newProviderName = ''
@@ -56,8 +88,10 @@
   let newProviderModel = '5.4'
   let newProviderFastMode = true
   let codexDesktopExecutablePathDraft = ''
+  let lastSyncedCodexDesktopExecutablePath = ''
 
-  $: if (settings.codexDesktopExecutablePath !== codexDesktopExecutablePathDraft) {
+  $: if (settings.codexDesktopExecutablePath !== lastSyncedCodexDesktopExecutablePath) {
+    lastSyncedCodexDesktopExecutablePath = settings.codexDesktopExecutablePath
     codexDesktopExecutablePathDraft = settings.codexDesktopExecutablePath
   }
 
@@ -211,10 +245,10 @@
         <button
           class={compactGhostButton}
           type="button"
-          on:click={checkForUpdates}
-          disabled={!canCheckForUpdates()}
+          on:click={runUpdateAction}
+          disabled={updateActionDisabled()}
         >
-          {updateState.status === 'checking' ? copy.checkingUpdates : copy.checkUpdates}
+          {updateActionLabel()}
         </button>
       </div>
 

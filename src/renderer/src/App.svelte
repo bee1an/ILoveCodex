@@ -661,6 +661,8 @@
         {updateCheckForUpdatesOnStartup}
         {updateCodexDesktopExecutablePath}
         {checkForUpdates}
+        {downloadUpdate}
+        {installUpdate}
         {copyAuthUrl}
         {copyDeviceCode}
         {openExternalLink}
