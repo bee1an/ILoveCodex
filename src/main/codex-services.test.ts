@@ -23,7 +23,7 @@ vi.mock('node:child_process', () => ({
   spawn: mockedProcessState.spawn
 }))
 
-import { createCodexServices } from './codex-services'
+import { createCodexServices, resolveWindowsCodexDesktopExecutable } from './codex-services'
 
 function createPlatform(): CodexPlatformAdapter {
   return {
@@ -71,6 +71,7 @@ function createAuthPayload(accountId: string, email: string) {
 describe('createCodexServices', () => {
   const createdDirectories: string[] = []
   let originalHome: string | undefined
+  const originalPlatform = process.platform
   let processKillSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
@@ -177,6 +178,7 @@ describe('createCodexServices', () => {
 
   afterEach(async () => {
     processKillSpy.mockRestore()
+    Object.defineProperty(process, 'platform', { value: originalPlatform })
     process.env.HOME = originalHome
     await Promise.all(
       createdDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true }))
@@ -263,6 +265,45 @@ describe('createCodexServices', () => {
     await services.codex.openIsolated(snapshot.accounts[0]!.id, env.workspacePath)
 
     expect(mockedProcessState.spawnedCommands.at(-1)).toBe('C:\\Program Files\\Codex\\Codex.exe')
+  })
+
+  it('detects the Windows Store desktop executable from InstallLocation', async () => {
+    mockedProcessState.execFile.mockImplementation(
+      (
+        file: string,
+        args: string[] | ((error: Error | null, stdout: string, stderr: string) => void),
+        options:
+          | { cwd?: string; env?: NodeJS.ProcessEnv }
+          | ((error: Error | null, stdout: string, stderr: string) => void),
+        callback?: (error: Error | null, stdout: string, stderr: string) => void
+      ) => {
+        const resolvedCallback =
+          typeof args === 'function'
+            ? args
+            : typeof options === 'function'
+              ? options
+              : callback
+
+        if (!resolvedCallback) {
+          throw new Error('Missing execFile callback')
+        }
+
+        if (file.toLowerCase().endsWith('powershell.exe')) {
+          resolvedCallback(
+            null,
+            'C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.309.3504.0_x64__2p2nqsdec76g0\r\n',
+            ''
+          )
+          return
+        }
+
+        throw new Error(`Unexpected execFile call: ${file}`)
+      }
+    )
+
+    await expect(resolveWindowsCodexDesktopExecutable()).resolves.toBe(
+      'C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.309.3504.0_x64__2p2nqsdec76g0/app/Codex.exe'
+    )
   })
 
   it('syncs only config files into isolated instances', async () => {

@@ -122,6 +122,43 @@ async function pathExists(value: string): Promise<boolean> {
   }
 }
 
+export async function resolveWindowsCodexDesktopExecutable(): Promise<string | null> {
+  const powershellPath = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
+
+  try {
+    const stdout = await new Promise<string>((resolveStdout, rejectStdout) => {
+      execFileCallback(
+        powershellPath,
+        [
+          '-NoProfile',
+          '-Command',
+          '(Get-AppxPackage *Codex* | Select-Object -ExpandProperty InstallLocation -First 1)'
+        ],
+        (error, commandStdout) => {
+          if (error) {
+            rejectStdout(error)
+            return
+          }
+
+          resolveStdout(commandStdout)
+        }
+      )
+    })
+    const installLocation = stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean)
+
+    if (installLocation) {
+      return join(installLocation, 'app', 'Codex.exe')
+    }
+  } catch {
+    // Fall through to explicit configuration or PATH-based fallback.
+  }
+
+  return null
+}
+
 async function listCodexProcessIds(): Promise<number[]> {
   try {
     const { stdout } = await execFile('pgrep', ['-f', codexProcessPattern])
@@ -235,6 +272,13 @@ async function resolveCodexLaunchCommand(options?: {
 
   if (options?.preferAppBundle && process.platform === 'darwin' && (await pathExists(macosCodexAppBinary))) {
     return macosCodexAppBinary
+  }
+
+  if (options?.requireDesktopExecutable) {
+    const detectedWindowsExecutable = await resolveWindowsCodexDesktopExecutable()
+    if (detectedWindowsExecutable) {
+      return detectedWindowsExecutable
+    }
   }
 
   if (options?.requireDesktopExecutable) {
