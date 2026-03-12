@@ -78,6 +78,8 @@ export interface UpdateCodexInstanceInput {
 export interface AppMeta {
   version: string
   githubUrl: string | null
+  platform?: string
+  isPackaged?: boolean
 }
 
 export type AppUpdateStatus =

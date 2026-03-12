@@ -175,7 +175,9 @@ function buildRendererUrl(query: Record<string, string> = {}): string {
 function getAppMeta(): AppMeta {
   return {
     version: app.getVersion(),
-    githubUrl: resolveGithubUrl()
+    githubUrl: resolveGithubUrl(),
+    platform: process.platform,
+    isPackaged: app.isPackaged
   }
 }
 

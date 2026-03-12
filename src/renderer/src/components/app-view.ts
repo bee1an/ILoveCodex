@@ -23,6 +23,8 @@ export const messages = {
     actionFailed: '操作失败',
     startLoginFailed: '无法启动登录流程',
     readRateLimitFailed: '无法读取账号限额',
+    legacyAccountNeedsReimport: '这个账号来自旧版本的钥匙串存储，请重新导入。',
+    legacyProviderNeedsApiKey: '这个提供商的 API Key 来自旧版本的钥匙串存储，请重新填写并保存。',
     removeConfirm: (label: string) => `删除 ${label} 的本地保存登录态？`,
     callbackLogin: '回调登录',
     deviceLogin: '设备码登录',
@@ -165,6 +167,10 @@ export const messages = {
     actionFailed: 'Action failed',
     startLoginFailed: 'Unable to start login flow',
     readRateLimitFailed: 'Unable to read account limits',
+    legacyAccountNeedsReimport:
+      'This account was saved by an older Keychain-backed version. Re-import it to continue.',
+    legacyProviderNeedsApiKey:
+      'This provider API key was saved by an older Keychain-backed version. Enter it again and save the provider.',
     removeConfirm: (label: string) => `Remove the saved local session for ${label}?`,
     callbackLogin: 'Callback login',
     deviceLogin: 'Device code login',

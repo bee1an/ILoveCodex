@@ -48,7 +48,9 @@
   }
   let appMeta: AppMeta = {
     version: '--',
-    githubUrl: null
+    githubUrl: null,
+    platform: undefined,
+    isPackaged: true
   }
   let loginEvent: LoginEvent | null = null
   let loginStarting = false
@@ -152,6 +154,9 @@
     updateState = await window.codexApp.getUpdateState()
   }
 
+  const shouldShowCodexDesktopExecutablePath = (): boolean =>
+    appMeta.isPackaged === false || appMeta.platform === 'win32'
+
   const bestAccount = (): AccountSummary | null =>
     resolveBestAccount(snapshot.accounts, usageByAccountId, snapshot.activeAccountId)
 
@@ -191,6 +196,30 @@
     usageErrorByAccountId = nextState
   }
 
+  const localizeKnownError = (
+    error: unknown,
+    fallback: string
+  ): string => {
+    if (!(error instanceof Error)) {
+      return fallback
+    }
+
+    const copy = copyForLanguage()
+    return error.message
+      .replace(
+        'This account was saved with macOS Keychain protection in an older version. Re-import it to use it without Keychain prompts.',
+        copy.legacyAccountNeedsReimport
+      )
+      .replace(
+        'Credentials saved by older versions used macOS Keychain storage and can no longer be read. Re-add them in this version.',
+        copy.legacyAccountNeedsReimport
+      )
+      .replace(
+        'This provider API key was saved with macOS Keychain protection in an older version. Edit the provider and save the API key again.',
+        copy.legacyProviderNeedsApiKey
+      )
+  }
+
   const clearUsageLoading = (accountId: string): void => {
     const nextState = { ...usageLoadingByAccountId }
     delete nextState[accountId]
@@ -203,7 +232,7 @@
     try {
       applySnapshot(await task())
     } catch (error) {
-      pageError = error instanceof Error ? error.message : copyForLanguage().actionFailed
+      pageError = localizeKnownError(error, copyForLanguage().actionFailed)
     }
   }
 
@@ -298,7 +327,7 @@
       applySnapshot(await window.codexApp.getSnapshot())
     } catch (error) {
       loginStarting = false
-      pageError = error instanceof Error ? error.message : copyForLanguage().startLoginFailed
+      pageError = localizeKnownError(error, copyForLanguage().startLoginFailed)
       if (hasLoginPortConflict()) {
         await refreshLoginPortOccupant()
       }
@@ -313,7 +342,7 @@
       loginPortOccupant = await window.codexApp.killLoginPortOccupant()
       await refreshLoginPortOccupant()
     } catch (error) {
-      pageError = error instanceof Error ? error.message : copyForLanguage().killPortOccupantFailed
+      pageError = localizeKnownError(error, copyForLanguage().killPortOccupantFailed)
     } finally {
       killingLoginPortOccupant = false
     }
@@ -419,7 +448,7 @@
     } catch (error) {
       usageErrorByAccountId = {
         ...usageErrorByAccountId,
-        [account.id]: error instanceof Error ? error.message : copyForLanguage().readRateLimitFailed
+        [account.id]: localizeKnownError(error, copyForLanguage().readRateLimitFailed)
       }
     } finally {
       clearUsageLoading(account.id)
@@ -660,6 +689,7 @@
         {updatePollingInterval}
         {updateCheckForUpdatesOnStartup}
         {updateCodexDesktopExecutablePath}
+        showCodexDesktopExecutablePath={shouldShowCodexDesktopExecutablePath()}
         {checkForUpdates}
         {downloadUpdate}
         {installUpdate}
