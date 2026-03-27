@@ -47,6 +47,8 @@ interface CliTestRuntime {
     accounts: {
       list: ReturnType<typeof vi.fn>
       importCurrent: ReturnType<typeof vi.fn>
+      importFromTemplate: ReturnType<typeof vi.fn>
+      exportToTemplate: ReturnType<typeof vi.fn>
       activate: ReturnType<typeof vi.fn>
       activateBest: ReturnType<typeof vi.fn>
       reorder: ReturnType<typeof vi.fn>
@@ -67,7 +69,11 @@ interface CliTestRuntime {
       update: ReturnType<typeof vi.fn>
       remove: ReturnType<typeof vi.fn>
       get: ReturnType<typeof vi.fn>
+      check: ReturnType<typeof vi.fn>
       open: ReturnType<typeof vi.fn>
+    }
+    doctor: {
+      run: ReturnType<typeof vi.fn>
     }
     session: {
       current: ReturnType<typeof vi.fn>
@@ -150,7 +156,32 @@ function createRuntime(): {
     currentSession: {
       email: 'one@example.com',
       storedAccountId: 'acct_1'
-    }
+    },
+    codexInstances: [
+      {
+        id: '__default__',
+        name: '',
+        codexHome: '/Users/test/.codex',
+        extraArgs: '',
+        isDefault: true,
+        createdAt: '2026-03-01T00:00:00.000Z',
+        updatedAt: '2026-03-01T00:00:00.000Z',
+        running: false,
+        initialized: true
+      },
+      {
+        id: 'inst_1',
+        name: 'Work',
+        codexHome: '/tmp/codex-instance-homes/work',
+        bindAccountId: 'acct_1',
+        extraArgs: '--approval never',
+        isDefault: false,
+        createdAt: '2026-03-04T00:00:00.000Z',
+        updatedAt: '2026-03-04T00:00:00.000Z',
+        running: false,
+        initialized: true
+      }
+    ]
   })
   const rateLimits: AccountRateLimits = {
     limitId: 'codex',
@@ -201,6 +232,14 @@ function createRuntime(): {
       accounts: {
         list: vi.fn(async () => snapshot),
         importCurrent: vi.fn(async () => snapshot),
+        importFromTemplate: vi.fn(async () => snapshot),
+        exportToTemplate: vi.fn(async () =>
+          JSON.stringify({
+            exported_at: '2026-03-08T00:00:00.000Z',
+            proxies: [],
+            accounts: []
+          })
+        ),
         activate: vi.fn(async () => snapshot),
         activateBest: vi.fn(async () => snapshot),
         reorder: vi.fn(async () => snapshot),
@@ -221,7 +260,38 @@ function createRuntime(): {
         update: vi.fn(async () => snapshot),
         remove: vi.fn(async () => snapshot),
         get: vi.fn(async () => snapshot.providers[0]),
+        check: vi.fn(async () => ({
+          checkedAt: '2026-03-08T00:00:00.000Z',
+          providerId: 'provider_1',
+          providerName: 'Bee',
+          baseUrl: 'https://api.bee1an.us.kg/v1',
+          model: '5.4',
+          ok: true,
+          latencyMs: 42,
+          httpStatus: 200,
+          availableModels: ['5.4'],
+          checks: [
+            {
+              id: 'connectivity',
+              status: 'pass',
+              summary: 'Provider responded in 42 ms.'
+            }
+          ]
+        })),
         open: vi.fn(async () => snapshot)
+      },
+      doctor: {
+        run: vi.fn(async () => ({
+          checkedAt: '2026-03-08T00:00:00.000Z',
+          ok: true,
+          checks: [
+            {
+              id: 'login-port',
+              status: 'pass',
+              summary: 'Login callback port 1455 is available.'
+            }
+          ]
+        }))
       },
       session: {
         current: vi.fn(async () => currentSession)
@@ -283,13 +353,13 @@ function createRuntime(): {
         open: vi.fn(async () => snapshot),
         openIsolated: vi.fn(async () => snapshot),
         instances: {
-          list: vi.fn(async () => []),
+          list: vi.fn(async () => snapshot.codexInstances),
           getDefaults: vi.fn(async () => snapshot.codexInstanceDefaults),
-          create: vi.fn(),
-          update: vi.fn(),
+          create: vi.fn(async () => snapshot.codexInstances[1]),
+          update: vi.fn(async () => snapshot.codexInstances[1]),
           remove: vi.fn(async () => undefined),
-          start: vi.fn(),
-          stop: vi.fn()
+          start: vi.fn(async () => snapshot.codexInstances[1]),
+          stop: vi.fn(async () => snapshot.codexInstances[1])
         }
       },
       getSnapshot: vi.fn(async () => snapshot)
@@ -361,6 +431,19 @@ describe('runCli', () => {
       0
     )
     expect(runtime.services.accounts.remove).toHaveBeenCalledWith('acct_1')
+
+    logSpy.mockClear()
+    await expect(runCli(runtime as never, ['account', 'export', '--json'])).resolves.toBe(0)
+    expect(runtime.services.accounts.exportToTemplate).toHaveBeenCalledWith([])
+    expect(parseJsonLog(logSpy)).toEqual({
+      ok: true,
+      data: {
+        exported_at: '2026-03-08T00:00:00.000Z',
+        proxies: [],
+        accounts: []
+      },
+      error: null
+    })
   })
 
   it('covers provider commands', async () => {
@@ -427,6 +510,81 @@ describe('runCli', () => {
       runCli(runtime as never, ['provider', 'remove', 'provider_1', '--json'])
     ).resolves.toBe(0)
     expect(runtime.services.providers.remove).toHaveBeenCalledWith('provider_1')
+
+    logSpy.mockClear()
+    await expect(
+      runCli(runtime as never, ['provider', 'check', 'provider_1', '--json'])
+    ).resolves.toBe(0)
+    expect(runtime.services.providers.check).toHaveBeenCalledWith('provider_1')
+  })
+
+  it('covers instance commands', async () => {
+    const { runtime } = createRuntime()
+
+    await expect(runCli(runtime as never, ['instance', 'list', '--json'])).resolves.toBe(0)
+    expect(runtime.services.codex.instances.list).toHaveBeenCalledOnce()
+
+    logSpy.mockClear()
+    await expect(
+      runCli(runtime as never, [
+        'instance',
+        'create',
+        '--name',
+        'Work',
+        '--codex-home',
+        '/tmp/work',
+        '--account',
+        'acct_1',
+        '--extra-args',
+        '--approval never',
+        '--json'
+      ])
+    ).resolves.toBe(0)
+    expect(runtime.services.codex.instances.create).toHaveBeenCalledWith({
+      name: 'Work',
+      codexHome: '/tmp/work',
+      bindAccountId: 'acct_1',
+      extraArgs: '--approval never'
+    })
+
+    logSpy.mockClear()
+    await expect(
+      runCli(runtime as never, [
+        'instance',
+        'update',
+        'inst_1',
+        '--name',
+        'Work 2',
+        '--account',
+        '-',
+        '--extra-args',
+        '--sandbox workspace-write',
+        '--json'
+      ])
+    ).resolves.toBe(0)
+    expect(runtime.services.codex.instances.update).toHaveBeenCalledWith('inst_1', {
+      name: 'Work 2',
+      bindAccountId: null,
+      extraArgs: '--sandbox workspace-write'
+    })
+
+    logSpy.mockClear()
+    await expect(
+      runCli(runtime as never, ['instance', 'start', 'default', '--workspace', '/tmp/ws', '--json'])
+    ).resolves.toBe(0)
+    expect(runtime.services.codex.instances.start).toHaveBeenCalledWith('__default__', '/tmp/ws')
+
+    logSpy.mockClear()
+    await expect(runCli(runtime as never, ['instance', 'stop', 'inst_1', '--json'])).resolves.toBe(
+      0
+    )
+    expect(runtime.services.codex.instances.stop).toHaveBeenCalledWith('inst_1')
+
+    logSpy.mockClear()
+    await expect(
+      runCli(runtime as never, ['instance', 'remove', 'inst_1', '--json'])
+    ).resolves.toBe(0)
+    expect(runtime.services.codex.instances.remove).toHaveBeenCalledWith('inst_1')
   })
 
   it('covers session current and usage read', async () => {
@@ -697,6 +855,13 @@ describe('runCli', () => {
       },
       error: null
     })
+  })
+
+  it('covers doctor command', async () => {
+    const { runtime } = createRuntime()
+
+    await expect(runCli(runtime as never, ['doctor', '--json'])).resolves.toBe(0)
+    expect(runtime.services.doctor.run).toHaveBeenCalledOnce()
   })
 
   it('returns usage errors for bad CLI input', async () => {

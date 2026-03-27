@@ -28,9 +28,29 @@ Supported commands:
 ```text
 ilc account list
 ilc account import-current
+ilc account import [--file <path>]
+ilc account export [account-id...]
 ilc account activate <account-id>
 ilc account best
 ilc account remove <account-id>
+ilc instance list
+ilc instance create --name <name>
+ilc instance update <instance-id|default>
+ilc instance start <instance-id|default>
+ilc instance stop <instance-id|default>
+ilc instance remove <instance-id>
+ilc provider list
+ilc provider create
+ilc provider update <provider-id>
+ilc provider remove <provider-id>
+ilc provider check <provider-id>
+ilc provider open <provider-id>
+ilc tag list
+ilc tag create <name>
+ilc tag rename <tag-id> <name>
+ilc tag remove <tag-id>
+ilc tag assign <account-id> <tag-id>
+ilc tag unassign <account-id> <tag-id>
 ilc session current
 ilc usage read [account-id]
 ilc login browser
@@ -38,6 +58,8 @@ ilc login device
 ilc login port status
 ilc login port kill
 ilc codex open [account-id]
+ilc codex open-isolated <account-id>
+ilc doctor
 ilc settings get [key]
 ilc settings set <key> <value>
 ```

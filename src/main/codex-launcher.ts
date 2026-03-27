@@ -174,7 +174,7 @@ export async function stopCodexProcess(pid: number): Promise<void> {
   }
 }
 
-async function resolveCodexLaunchCommand(options?: {
+export async function resolveCodexLaunchCommand(options?: {
   preferAppBundle?: boolean
   requireDesktopExecutable?: boolean
   desktopExecutablePath?: string

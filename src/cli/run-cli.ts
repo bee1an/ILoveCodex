@@ -1,3 +1,5 @@
+import { promises as fs } from 'node:fs'
+
 import type {
   AccountTag,
   AccountSummary,
@@ -6,6 +8,7 @@ import type {
   CliAccountListPayload,
   CliLoginResult,
   CliResult,
+  CodexInstanceSummary,
   LoginEvent,
   UpdateCustomProviderInput
 } from '../shared/codex'
@@ -15,15 +18,21 @@ import { CliError, EXIT_ENVIRONMENT, EXIT_FAILURE, EXIT_OK, EXIT_USAGE } from '.
 import {
   ensureSettingsKey,
   parseFlags,
+  parseFileOption,
+  parseInstanceOptions,
   parseProviderOptions,
   parseSettingsValue,
   type CliFlags
 } from './cli-parsing'
 import {
   accountLabel,
+  instanceLabel,
   printAccountList,
+  printDoctorReport,
   printHelp,
   printIfNeeded,
+  printInstances,
+  printProviderCheck,
   printProviders,
   printSettings,
   printTags,
@@ -34,10 +43,34 @@ import {
   toCliResult
 } from './cli-output'
 
+const DEFAULT_INSTANCE_ID = '__default__'
+
 interface CliRuntime {
   services: CodexServices
   platform: Pick<CodexPlatformAdapter, 'openExternal'>
   subscribeLoginEvents(listener: (event: LoginEvent) => void): () => void
+}
+
+async function readStdin(): Promise<string> {
+  const chunks: Buffer[] = []
+
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+  }
+
+  return Buffer.concat(chunks).toString('utf8')
+}
+
+function parseJsonMaybe<T>(raw: string): T | string {
+  try {
+    return JSON.parse(raw) as T
+  } catch {
+    return raw
+  }
+}
+
+function normalizeInstanceId(value: string): string {
+  return value === 'default' ? DEFAULT_INSTANCE_ID : value
 }
 
 async function waitForLoginResult(
@@ -159,6 +192,16 @@ function getSnapshotTag(snapshot: AppSnapshot, tagId: string): AccountTag {
   return tag
 }
 
+function getSnapshotInstance(snapshot: AppSnapshot, instanceId: string): CodexInstanceSummary {
+  const resolvedInstanceId = normalizeInstanceId(instanceId)
+  const instance = snapshot.codexInstances.find((item) => item.id === resolvedInstanceId)
+  if (!instance) {
+    throw new CliError(`Unknown instance-id: ${instanceId}`, EXIT_USAGE)
+  }
+
+  return instance
+}
+
 async function execute(
   runtime: CliRuntime,
   argv: string[]
@@ -193,6 +236,46 @@ async function execute(
           )
           printIfNeeded(`Imported current Codex account: ${accountLabel(active)}`, silent)
           return { code: EXIT_OK, payload: toCliResult(snapshot) }
+        }
+        case 'import': {
+          const { filePath, positionals } = parseFileOption(rest)
+          if (positionals.length) {
+            throw new CliError('Usage: ilc account import [--file <path>]', EXIT_USAGE)
+          }
+
+          const raw =
+            filePath != null
+              ? await fs.readFile(filePath, 'utf8')
+              : process.stdin.isTTY
+                ? (() => {
+                    throw new CliError(
+                      'Usage: ilc account import [--file <path>] or pipe JSON via stdin',
+                      EXIT_USAGE
+                    )
+                  })()
+                : await readStdin()
+          const snapshot = await runtime.services.accounts.importFromTemplate(raw)
+          printIfNeeded(
+            `Imported accounts from ${filePath ?? 'stdin'} (${snapshot.accounts.length} stored)`,
+            silent
+          )
+          return { code: EXIT_OK, payload: toCliResult(snapshot) }
+        }
+        case 'export': {
+          const { filePath, positionals } = parseFileOption(rest)
+          const raw = await runtime.services.accounts.exportToTemplate(positionals)
+          const parsed = parseJsonMaybe(raw)
+
+          if (filePath) {
+            await fs.writeFile(filePath, raw, 'utf8')
+            printIfNeeded(`Exported accounts to ${filePath}`, silent)
+          } else if (flags.json) {
+            return { code: EXIT_OK, payload: toCliResult(parsed) }
+          } else {
+            console.log(raw.trimEnd())
+          }
+
+          return { code: EXIT_OK, payload: toCliResult(parsed) }
         }
         case 'activate': {
           const accountId = rest[0]
@@ -296,6 +379,16 @@ async function execute(
           printIfNeeded(`Removed provider: ${providerId}`, silent)
           return { code: EXIT_OK, payload: toCliResult(snapshot) }
         }
+        case 'check': {
+          const providerId = rest[0]
+          if (!providerId) {
+            throw new CliError('Missing provider-id', EXIT_USAGE)
+          }
+
+          const report = await runtime.services.providers.check(providerId)
+          printProviderCheck(report, silent)
+          return { code: EXIT_OK, payload: toCliResult(report) }
+        }
         case 'open': {
           const providerId = rest[0]
           if (!providerId) {
@@ -308,6 +401,139 @@ async function execute(
         }
         default:
           throw new CliError('Unknown provider command', EXIT_USAGE)
+      }
+    }
+    case 'instance': {
+      switch (subcommand) {
+        case 'list': {
+          const instances = await runtime.services.codex.instances.list()
+          printInstances(instances, silent)
+          return { code: EXIT_OK, payload: toCliResult(instances) }
+        }
+        case 'create': {
+          const { input, positionals } = parseInstanceOptions(rest)
+          if (positionals.length) {
+            throw new CliError(
+              'Usage: ilc instance create --name <name> [--codex-home <path>] [--account <account-id>] [--extra-args <args>]',
+              EXIT_USAGE
+            )
+          }
+          if (!input.name?.trim()) {
+            throw new CliError('Missing instance name', EXIT_USAGE)
+          }
+
+          const instance = await runtime.services.codex.instances.create({
+            name: input.name.trim(),
+            codexHome: input.codexHome?.trim() || undefined,
+            bindAccountId:
+              typeof input.bindAccountId === 'string'
+                ? input.bindAccountId.trim() || undefined
+                : undefined,
+            extraArgs: input.extraArgs?.trim() || undefined
+          })
+          printIfNeeded(`Created instance: ${instanceLabel(instance)}`, silent)
+          return { code: EXIT_OK, payload: toCliResult(instance) }
+        }
+        case 'update': {
+          const { input, positionals } = parseInstanceOptions(rest)
+          const rawInstanceId = positionals[0]
+          if (!rawInstanceId) {
+            throw new CliError('Missing instance-id', EXIT_USAGE)
+          }
+          if (input.codexHome !== undefined || input.workspacePath !== undefined) {
+            throw new CliError(
+              'instance update does not support --codex-home or --workspace',
+              EXIT_USAGE
+            )
+          }
+
+          const updateInput: {
+            name?: string
+            bindAccountId?: string | null
+            extraArgs?: string
+          } = {}
+          if (input.name !== undefined) {
+            updateInput.name = input.name
+          }
+          if (input.bindAccountId !== undefined) {
+            updateInput.bindAccountId =
+              typeof input.bindAccountId === 'string'
+                ? input.bindAccountId.trim() || null
+                : null
+          }
+          if (input.extraArgs !== undefined) {
+            updateInput.extraArgs = input.extraArgs
+          }
+          if (!Object.keys(updateInput).length) {
+            throw new CliError('No instance changes provided', EXIT_USAGE)
+          }
+
+          const instance = await runtime.services.codex.instances.update(
+            normalizeInstanceId(rawInstanceId),
+            updateInput
+          )
+          printIfNeeded(`Updated instance: ${instanceLabel(instance)}`, silent)
+          return { code: EXIT_OK, payload: toCliResult(instance) }
+        }
+        case 'start': {
+          const { input, positionals } = parseInstanceOptions(rest)
+          const rawInstanceId = positionals[0]
+          if (!rawInstanceId) {
+            throw new CliError('Missing instance-id', EXIT_USAGE)
+          }
+          if (
+            input.name !== undefined ||
+            input.codexHome !== undefined ||
+            input.bindAccountId !== undefined ||
+            input.extraArgs !== undefined
+          ) {
+            throw new CliError('instance start only supports --workspace', EXIT_USAGE)
+          }
+
+          const instance = await runtime.services.codex.instances.start(
+            normalizeInstanceId(rawInstanceId),
+            input.workspacePath
+          )
+          printIfNeeded(`Started instance: ${instanceLabel(instance)}`, silent)
+          return { code: EXIT_OK, payload: toCliResult(instance) }
+        }
+        case 'stop': {
+          const rawInstanceId = rest[0]
+          if (!rawInstanceId) {
+            throw new CliError('Missing instance-id', EXIT_USAGE)
+          }
+          if (rest.length > 1) {
+            throw new CliError('Usage: ilc instance stop <instance-id|default>', EXIT_USAGE)
+          }
+
+          const instance = await runtime.services.codex.instances.stop(
+            normalizeInstanceId(rawInstanceId)
+          )
+          printIfNeeded(`Stopped instance: ${instanceLabel(instance)}`, silent)
+          return { code: EXIT_OK, payload: toCliResult(instance) }
+        }
+        case 'remove': {
+          const rawInstanceId = rest[0]
+          if (!rawInstanceId) {
+            throw new CliError('Missing instance-id', EXIT_USAGE)
+          }
+          if (rest.length > 1) {
+            throw new CliError('Usage: ilc instance remove <instance-id>', EXIT_USAGE)
+          }
+
+          const instanceId = normalizeInstanceId(rawInstanceId)
+          if (instanceId === DEFAULT_INSTANCE_ID) {
+            throw new CliError('Default instance cannot be removed.', EXIT_USAGE)
+          }
+
+          const snapshot = await runtime.services.accounts.list()
+          const instance = getSnapshotInstance(snapshot, instanceId)
+          await runtime.services.codex.instances.remove(instanceId)
+          printIfNeeded(`Removed instance: ${instanceLabel(instance)}`, silent)
+          return { code: EXIT_OK, payload: toCliResult(null) }
+        }
+        default:
+          throw new CliError('Unknown instance command', EXIT_USAGE)
       }
     }
     case 'session': {
@@ -491,6 +717,15 @@ async function execute(
         return { code: EXIT_OK, payload: toCliResult(snapshot) }
       }
       throw new CliError('Unknown codex command', EXIT_USAGE)
+    }
+    case 'doctor': {
+      if (subcommand) {
+        throw new CliError('Unknown doctor command', EXIT_USAGE)
+      }
+
+      const report = await runtime.services.doctor.run()
+      printDoctorReport(report, silent)
+      return { code: EXIT_OK, payload: toCliResult(report) }
     }
     case 'settings': {
       switch (subcommand) {

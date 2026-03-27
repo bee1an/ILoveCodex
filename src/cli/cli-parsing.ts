@@ -1,7 +1,9 @@
 import type {
   AppSettings,
   CliSettingsKey,
+  CreateCodexInstanceInput,
   CreateCustomProviderInput,
+  UpdateCodexInstanceInput,
   UpdateCustomProviderInput
 } from '../shared/codex'
 import { CliError, EXIT_USAGE } from './cli-errors'
@@ -198,6 +200,127 @@ export function parseProviderOptions(argv: string[]): {
         throw new CliError('--fast must be true or false', EXIT_USAGE)
       }
       input.fastMode = value === 'true'
+      index += 1
+      continue
+    }
+
+    if (arg.startsWith('--')) {
+      throw new CliError(`Unknown option: ${arg}`, EXIT_USAGE)
+    }
+
+    positionals.push(arg)
+  }
+
+  return { input, positionals }
+}
+
+export function parseFileOption(argv: string[]): {
+  filePath?: string
+  positionals: string[]
+} {
+  let filePath: string | undefined
+  const positionals: string[] = []
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index]
+
+    if (arg === '--file') {
+      const value = argv[index + 1]
+      if (!value) {
+        throw new CliError('Missing value for --file', EXIT_USAGE)
+      }
+      filePath = value
+      index += 1
+      continue
+    }
+
+    if (arg.startsWith('--file=')) {
+      filePath = arg.slice('--file='.length)
+      if (!filePath) {
+        throw new CliError('Missing value for --file', EXIT_USAGE)
+      }
+      continue
+    }
+
+    if (arg.startsWith('--')) {
+      throw new CliError(`Unknown option: ${arg}`, EXIT_USAGE)
+    }
+
+    positionals.push(arg)
+  }
+
+  return { filePath, positionals }
+}
+
+export function parseInstanceOptions(argv: string[]): {
+  input: Partial<
+    Omit<CreateCodexInstanceInput, 'bindAccountId'> &
+      Omit<UpdateCodexInstanceInput, 'bindAccountId'>
+  > & {
+    bindAccountId?: string | null
+    workspacePath?: string
+  }
+  positionals: string[]
+} {
+  const input: Partial<
+    Omit<CreateCodexInstanceInput, 'bindAccountId'> &
+      Omit<UpdateCodexInstanceInput, 'bindAccountId'>
+  > & {
+    bindAccountId?: string | null
+    workspacePath?: string
+  } = {}
+  const positionals: string[] = []
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index]
+    const value = argv[index + 1]
+
+    if (arg === '--name') {
+      if (!value) {
+        throw new CliError('Missing value for --name', EXIT_USAGE)
+      }
+      input.name = value
+      index += 1
+      continue
+    }
+
+    if (arg === '--codex-home') {
+      if (!value) {
+        throw new CliError('Missing value for --codex-home', EXIT_USAGE)
+      }
+      input.codexHome = value
+      index += 1
+      continue
+    }
+
+    if (arg === '--account') {
+      if (!value) {
+        throw new CliError('Missing value for --account', EXIT_USAGE)
+      }
+      input.bindAccountId = value === '-' ? null : value
+      index += 1
+      continue
+    }
+
+    if (arg === '--unbind-account') {
+      input.bindAccountId = null
+      continue
+    }
+
+    if (arg === '--extra-args') {
+      if (!value) {
+        throw new CliError('Missing value for --extra-args', EXIT_USAGE)
+      }
+      input.extraArgs = value
+      index += 1
+      continue
+    }
+
+    if (arg === '--workspace') {
+      if (!value) {
+        throw new CliError('Missing value for --workspace', EXIT_USAGE)
+      }
+      input.workspacePath = value
       index += 1
       continue
     }

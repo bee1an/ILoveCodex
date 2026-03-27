@@ -23,6 +23,7 @@ import {
 } from './codex-account-template'
 import {
   launchCodexDesktop,
+  resolveCodexLaunchCommand,
   resolveManagedCodexPid,
   resolveWindowsCodexDesktopExecutable,
   stopCodexProcess,
@@ -45,7 +46,10 @@ import {
   type CreateCustomProviderInput,
   type CustomProviderDetail,
   type CurrentSessionSummary,
+  type DoctorReport,
+  type HealthCheckResult,
   type LoginEvent,
+  type ProviderCheckReport,
   type CustomProviderSummary,
   type UpdateCustomProviderInput,
   type UpdateCodexInstanceInput
@@ -130,6 +134,63 @@ function shouldClearStoredUsage(error: unknown): boolean {
   )
 }
 
+function makeHealthCheck(
+  id: string,
+  status: HealthCheckResult['status'],
+  summary: string,
+  detail?: string
+): HealthCheckResult {
+  return {
+    id,
+    status,
+    summary,
+    detail
+  }
+}
+
+function reportIsOk(checks: HealthCheckResult[]): boolean {
+  return !checks.some((check) => check.status === 'fail')
+}
+
+function appendPathSegment(baseUrl: string, segment: string): string {
+  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+  return new URL(segment.replace(/^\/+/, ''), normalizedBaseUrl).toString()
+}
+
+function parseProviderModels(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw) as { data?: Array<{ id?: unknown }> }
+    return (parsed.data ?? [])
+      .map((entry) => (typeof entry.id === 'string' ? entry.id.trim() : ''))
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+function extractProviderErrorDetail(raw: string): string | undefined {
+  const normalized = raw.trim()
+  if (!normalized) {
+    return undefined
+  }
+
+  try {
+    const parsed = JSON.parse(normalized) as {
+      error?: unknown
+      detail?: unknown
+      message?: unknown
+    }
+    const candidate =
+      (typeof parsed.detail === 'string' && parsed.detail) ||
+      (typeof parsed.message === 'string' && parsed.message) ||
+      (typeof parsed.error === 'string' && parsed.error) ||
+      normalized
+    return candidate.trim() || undefined
+  } catch {
+    return normalized
+  }
+}
+
 export interface CodexServices {
   getSnapshot(): Promise<AppSnapshot>
   accounts: {
@@ -159,7 +220,11 @@ export interface CodexServices {
     update(providerId: string, input: UpdateCustomProviderInput): Promise<AppSnapshot>
     remove(providerId: string): Promise<AppSnapshot>
     get(providerId: string): Promise<CustomProviderDetail>
+    check(providerId: string): Promise<ProviderCheckReport>
     open(providerId: string, workspacePath?: string): Promise<AppSnapshot>
+  }
+  doctor: {
+    run(): Promise<DoctorReport>
   }
   session: {
     current(): Promise<CurrentSessionSummary | null>
@@ -390,19 +455,24 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
 
   async function listCodexInstances(): Promise<CodexInstanceSummary[]> {
     const defaultInstance = await instanceStore.getDefaultInstance()
-    return [await toDefaultInstanceSummary(defaultInstance)]
+    const instances = await instanceStore.list()
+    return Promise.all([
+      toDefaultInstanceSummary(defaultInstance),
+      ...instances.map((instance) => toInstanceSummary(instance))
+    ])
   }
 
   async function getSnapshot(): Promise<AppSnapshot> {
-    const [snapshot, providers] = await Promise.all([
+    const [snapshot, providers, codexInstances] = await Promise.all([
       store.getSnapshot(loginCoordinator.isRunning()),
-      providerStore.list()
+      providerStore.list(),
+      listCodexInstances()
     ])
 
     return {
       ...snapshot,
       providers,
-      codexInstances: [],
+      codexInstances,
       codexInstanceDefaults: instanceStore.getDefaults()
     }
   }
@@ -538,6 +608,135 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
     return providerStore.markUsed(providerId)
   }
 
+  async function checkProvider(providerId: string): Promise<ProviderCheckReport> {
+    const provider = await providerStore.getResolvedProvider(providerId)
+    const modelsUrl = appendPathSegment(provider.summary.baseUrl, 'models')
+    const checks: HealthCheckResult[] = []
+    const checkedAt = new Date().toISOString()
+
+    let latencyMs: number | null = null
+    let httpStatus: number | null = null
+    let availableModels: string[] = []
+
+    try {
+      const startedAt = Date.now()
+      const response = await options.platform.fetch(modelsUrl, {
+        method: 'GET',
+        headers: {
+          authorization: `Bearer ${provider.apiKey}`
+        }
+      })
+      latencyMs = Date.now() - startedAt
+      httpStatus = response.status
+
+      const raw = await response.text()
+      const errorDetail = extractProviderErrorDetail(raw)
+
+      checks.push(
+        makeHealthCheck(
+          'connectivity',
+          response.status >= 500 ? 'fail' : 'pass',
+          response.status >= 500
+            ? `Provider responded with HTTP ${response.status}.`
+            : `Provider responded in ${latencyMs} ms.`,
+          errorDetail
+        )
+      )
+
+      if (response.status === 401 || response.status === 403) {
+        checks.push(
+          makeHealthCheck(
+            'authentication',
+            'fail',
+            'Provider rejected the API key.',
+            errorDetail
+          )
+        )
+      } else {
+        checks.push(
+          makeHealthCheck(
+            'authentication',
+            'pass',
+            'Provider accepted the authentication request.'
+          )
+        )
+      }
+
+      if (response.status === 404) {
+        checks.push(
+          makeHealthCheck(
+            'model',
+            'warn',
+            'Provider does not expose a /models endpoint; model validation was skipped.'
+          )
+        )
+      } else if (!response.ok) {
+        checks.push(
+          makeHealthCheck(
+            'model',
+            'fail',
+            `Provider model probe failed with HTTP ${response.status}.`,
+            errorDetail
+          )
+        )
+      } else {
+        availableModels = parseProviderModels(raw)
+        if (!availableModels.length) {
+          checks.push(
+            makeHealthCheck(
+              'model',
+              'warn',
+              'Provider returned no model list; configured model could not be verified.'
+            )
+          )
+        } else if (availableModels.includes(provider.summary.model)) {
+          checks.push(
+            makeHealthCheck(
+              'model',
+              'pass',
+              `Configured model "${provider.summary.model}" is available.`
+            )
+          )
+        } else {
+          checks.push(
+            makeHealthCheck(
+              'model',
+              'fail',
+              `Configured model "${provider.summary.model}" was not found in /models.`,
+              availableModels.slice(0, 10).join(', ')
+            )
+          )
+        }
+      }
+    } catch (error) {
+      checks.push(
+        makeHealthCheck(
+          'connectivity',
+          'fail',
+          'Provider request failed before receiving an HTTP response.',
+          error instanceof Error ? error.message : 'Unknown error'
+        )
+      )
+      checks.push(
+        makeHealthCheck('authentication', 'warn', 'Authentication could not be verified.')
+      )
+      checks.push(makeHealthCheck('model', 'warn', 'Model validation was skipped.'))
+    }
+
+    return {
+      checkedAt,
+      providerId: provider.summary.id,
+      providerName: provider.summary.name,
+      baseUrl: provider.summary.baseUrl,
+      model: provider.summary.model,
+      ok: reportIsOk(checks),
+      latencyMs,
+      httpStatus,
+      availableModels,
+      checks
+    }
+  }
+
   async function stopInstance(instanceId: string): Promise<CodexInstanceSummary> {
     if (instanceId === DEFAULT_CODEX_INSTANCE_ID) {
       const defaultInstance = await instanceStore.getDefaultInstance()
@@ -561,6 +760,117 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
     }
 
     return toInstanceSummary(await instanceStore.setInstancePid(instance.id, null))
+  }
+
+  async function runDoctor(): Promise<DoctorReport> {
+    const checkedAt = new Date().toISOString()
+    const checks: HealthCheckResult[] = []
+    const snapshot = await getSnapshot()
+
+    const loginPortOccupant = await getOpenAiCallbackPortOccupant()
+    if (loginPortOccupant) {
+      checks.push(
+        makeHealthCheck(
+          'login-port',
+          'warn',
+          `Login callback port 1455 is occupied by ${loginPortOccupant.command} (${loginPortOccupant.pid}).`
+        )
+      )
+    } else {
+      checks.push(makeHealthCheck('login-port', 'pass', 'Login callback port 1455 is available.'))
+    }
+
+    try {
+      const command = await resolveCodexLaunchCommand({
+        preferAppBundle: true,
+        requireDesktopExecutable: true,
+        desktopExecutablePath: await getDesktopExecutablePathOverride()
+      })
+      checks.push(
+        makeHealthCheck('codex-desktop', 'pass', `Codex desktop executable resolved: ${command}`)
+      )
+    } catch (error) {
+      checks.push(
+        makeHealthCheck(
+          'codex-desktop',
+          'fail',
+          'Codex desktop executable could not be resolved.',
+          error instanceof Error ? error.message : 'Unknown error'
+        )
+      )
+    }
+
+    if (!snapshot.currentSession) {
+      checks.push(
+        makeHealthCheck('current-session', 'warn', 'No current global Codex session was detected.')
+      )
+    } else if (!snapshot.currentSession.storedAccountId) {
+      checks.push(
+        makeHealthCheck(
+          'current-session',
+          'warn',
+          'Current global Codex session is not imported into Ilovecodex.'
+        )
+      )
+    } else {
+      try {
+        await prepareLaunchAuthPayload(snapshot.currentSession.storedAccountId)
+        const account = await store.getAccountSummary(snapshot.currentSession.storedAccountId)
+        checks.push(
+          makeHealthCheck(
+            'current-session',
+            'pass',
+            `Current managed session is ready: ${accountErrorLabel(account)}`
+          )
+        )
+      } catch (error) {
+        checks.push(
+          makeHealthCheck(
+            'current-session',
+            'fail',
+            'Current managed session could not be prepared for launch.',
+            error instanceof Error ? error.message : 'Unknown error'
+          )
+        )
+      }
+    }
+
+    const providers = await providerStore.list()
+    if (!providers.length) {
+      checks.push(makeHealthCheck('providers', 'pass', 'No custom providers are configured.'))
+    } else {
+      const brokenProviders: string[] = []
+      for (const provider of providers) {
+        try {
+          await providerStore.getResolvedProvider(provider.id)
+        } catch (error) {
+          brokenProviders.push(
+            `${customProviderLabel(provider)}: ${error instanceof Error ? error.message : 'Unknown error'}`
+          )
+        }
+      }
+
+      checks.push(
+        brokenProviders.length
+          ? makeHealthCheck(
+              'providers',
+              'fail',
+              `${brokenProviders.length} custom provider(s) need attention.`,
+              brokenProviders.join('\n')
+            )
+          : makeHealthCheck(
+              'providers',
+              'pass',
+              `All ${providers.length} custom provider(s) can be loaded locally.`
+            )
+      )
+    }
+
+    return {
+      checkedAt,
+      ok: reportIsOk(checks),
+      checks
+    }
   }
 
   return {
@@ -705,10 +1015,14 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
           apiKey: provider.apiKey
         }
       },
+      check: checkProvider,
       open: async (providerId, workspacePath = options.defaultWorkspacePath) => {
         await startProviderInstance(providerId, workspacePath)
         return getSnapshot()
       }
+    },
+    doctor: {
+      run: runDoctor
     },
     session: {
       current: async () => (await getSnapshot()).currentSession

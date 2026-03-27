@@ -391,6 +391,117 @@ describe('createCodexServices', () => {
     )
   })
 
+  it('lists default and named instances in service results and snapshots', async () => {
+    const env = await createEnvironment()
+    const services = createCodexServices({
+      userDataPath: env.userDataPath,
+      defaultWorkspacePath: env.workspacePath,
+      platform: createPlatform()
+    })
+
+    const created = await services.codex.instances.create({
+      name: 'Work',
+      bindAccountId: 'acct-a',
+      extraArgs: '--approval never'
+    })
+
+    const instances = await services.codex.instances.list()
+    expect(instances.map((instance) => instance.id)).toEqual(['__default__', created.id])
+    expect(instances[1]).toMatchObject({
+      name: 'Work',
+      bindAccountId: 'acct-a',
+      extraArgs: '--approval never'
+    })
+
+    const snapshot = await services.getSnapshot()
+    expect(snapshot.codexInstances.map((instance) => instance.id)).toEqual([
+      '__default__',
+      created.id
+    ])
+  })
+
+  it('checks provider health via /models', async () => {
+    const env = await createEnvironment()
+    const platform = createPlatform()
+    platform.fetch = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: [{ id: 'gpt-5.4' }, { id: 'gpt-5.4-mini' }]
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json'
+          }
+        }
+      )
+    })
+    const services = createCodexServices({
+      userDataPath: env.userDataPath,
+      defaultWorkspacePath: env.workspacePath,
+      platform
+    })
+
+    const created = await services.providers.create({
+      name: 'Bee',
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'provider-secret',
+      model: 'gpt-5.4',
+      fastMode: true
+    })
+    const providerId = created.providers[0]?.id
+    expect(providerId).toBeTruthy()
+
+    const report = await services.providers.check(providerId!)
+    expect(platform.fetch).toHaveBeenCalledWith('https://api.example.com/v1/models', {
+      method: 'GET',
+      headers: {
+        authorization: 'Bearer provider-secret'
+      }
+    })
+    expect(report.ok).toBe(true)
+    expect(report.httpStatus).toBe(200)
+    expect(report.availableModels).toEqual(['gpt-5.4', 'gpt-5.4-mini'])
+    expect(report.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'model',
+          status: 'pass'
+        })
+      ])
+    )
+  })
+
+  it('runs doctor checks for current session and desktop resolution', async () => {
+    const env = await createEnvironment()
+    const services = createCodexServices({
+      userDataPath: env.userDataPath,
+      defaultWorkspacePath: env.workspacePath,
+      platform: createPlatform()
+    })
+
+    await services.settings.update({
+      codexDesktopExecutablePath: '/usr/local/bin/codex'
+    })
+    await writeGlobalAuth(env.globalAuthPath, createAuthPayload('acct-a', 'a@example.com'))
+    await services.accounts.importCurrent()
+
+    const report = await services.doctor.run()
+    expect(report.ok).toBe(true)
+    expect(report.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'codex-desktop',
+          status: 'pass'
+        }),
+        expect.objectContaining({
+          id: 'current-session',
+          status: 'pass'
+        })
+      ])
+    )
+  })
+
   it('restarts only the default instance when codex.open(accountId) is called', async () => {
     const env = await createEnvironment()
     const services = createCodexServices({

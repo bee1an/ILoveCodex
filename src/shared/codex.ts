@@ -228,6 +228,34 @@ export interface CliLoginResult {
   snapshot: AppSnapshot | null
 }
 
+export type HealthCheckStatus = 'pass' | 'warn' | 'fail'
+
+export interface HealthCheckResult {
+  id: string
+  status: HealthCheckStatus
+  summary: string
+  detail?: string
+}
+
+export interface DoctorReport {
+  checkedAt: string
+  ok: boolean
+  checks: HealthCheckResult[]
+}
+
+export interface ProviderCheckReport {
+  checkedAt: string
+  providerId: string
+  providerName?: string
+  baseUrl: string
+  model: string
+  ok: boolean
+  latencyMs: number | null
+  httpStatus: number | null
+  availableModels: string[]
+  checks: HealthCheckResult[]
+}
+
 export function remainingPercent(value?: number | null): number {
   return Math.max(0, Math.min(100, 100 - (value ?? 0)))
 }

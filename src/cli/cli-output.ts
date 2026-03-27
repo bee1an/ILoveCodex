@@ -5,8 +5,12 @@ import type {
   AppSettings,
   CliAccountListPayload,
   CliResult,
+  CodexInstanceSummary,
   CurrentSessionSummary,
-  CustomProviderSummary
+  CustomProviderSummary,
+  DoctorReport,
+  HealthCheckResult,
+  ProviderCheckReport
 } from '../shared/codex'
 
 export function printHelp(): void {
@@ -15,6 +19,8 @@ export function printHelp(): void {
 Usage:
   ilc account list [--json]
   ilc account import-current [--json]
+  ilc account import [--file <path>] [--json]
+  ilc account export [account-id...] [--file <path>] [--json]
   ilc account activate <account-id> [--json]
   ilc account best [--json]
   ilc account remove <account-id> [--json]
@@ -22,7 +28,14 @@ Usage:
   ilc provider create --base-url <url> --api-key <key> [--name <name>] [--model <model>] [--fast <true|false>] [--json]
   ilc provider update <provider-id> [--name <name>] [--base-url <url>] [--api-key <key>] [--model <model>] [--fast <true|false>] [--json]
   ilc provider remove <provider-id> [--json]
+  ilc provider check <provider-id> [--json]
   ilc provider open <provider-id> [--json]
+  ilc instance list [--json]
+  ilc instance create --name <name> [--codex-home <path>] [--account <account-id>] [--extra-args <args>] [--json]
+  ilc instance update <instance-id|default> [--name <name>] [--account <account-id|->] [--extra-args <args>] [--unbind-account] [--json]
+  ilc instance start <instance-id|default> [--workspace <path>] [--json]
+  ilc instance stop <instance-id|default> [--json]
+  ilc instance remove <instance-id> [--json]
   ilc tag list [--json]
   ilc tag create <name> [--json]
   ilc tag rename <tag-id> <name> [--json]
@@ -37,6 +50,7 @@ Usage:
   ilc login port kill [--json]
   ilc codex open [account-id] [--json]
   ilc codex open-isolated <account-id> [--json]
+  ilc doctor [--json]
   ilc settings get [key] [--json]
   ilc settings set <key> <value> [--json]
 
@@ -82,6 +96,16 @@ export function providerLabel(
   }
 
   return provider.name ?? provider.baseUrl ?? provider.id
+}
+
+export function instanceLabel(
+  instance?: Pick<CodexInstanceSummary, 'id' | 'name' | 'isDefault'> | null
+): string {
+  if (!instance) {
+    return 'unknown'
+  }
+
+  return instance.isDefault ? 'default' : instance.name || instance.id
 }
 
 export function printIfNeeded(message: string, quiet: boolean): void {
@@ -169,6 +193,62 @@ export function printProviders(providers: CustomProviderSummary[], quiet: boolea
       `${provider.id}  ${providerLabel(provider)}  ${provider.model}  ${provider.fastMode ? 'fast' : 'normal'}`
     )
   }
+}
+
+export function printInstances(instances: CodexInstanceSummary[], quiet: boolean): void {
+  if (quiet) {
+    return
+  }
+
+  if (!instances.length) {
+    console.log('No instances')
+    return
+  }
+
+  for (const instance of instances) {
+    console.log(
+      `${instance.isDefault ? 'default' : instance.id}  ${instanceLabel(instance)}  ${
+        instance.running ? 'running' : 'stopped'
+      }  ${instance.codexHome}`
+    )
+  }
+}
+
+function printHealthChecks(checks: HealthCheckResult[]): void {
+  for (const check of checks) {
+    console.log(`[${check.status.toUpperCase()}] ${check.id}: ${check.summary}`)
+    if (check.detail) {
+      console.log(`  ${check.detail}`)
+    }
+  }
+}
+
+export function printDoctorReport(report: DoctorReport, quiet: boolean): void {
+  if (quiet) {
+    return
+  }
+
+  console.log(`Doctor: ${report.ok ? 'ok' : 'issues found'}`)
+  console.log(`Checked at: ${report.checkedAt}`)
+  printHealthChecks(report.checks)
+}
+
+export function printProviderCheck(report: ProviderCheckReport, quiet: boolean): void {
+  if (quiet) {
+    return
+  }
+
+  console.log(`Provider: ${report.providerName ?? report.providerId}`)
+  console.log(`Base URL: ${report.baseUrl}`)
+  console.log(`Model: ${report.model}`)
+  console.log(`Result: ${report.ok ? 'ok' : 'issues found'}`)
+  if (report.httpStatus != null) {
+    console.log(`HTTP status: ${report.httpStatus}`)
+  }
+  if (report.latencyMs != null) {
+    console.log(`Latency: ${report.latencyMs}ms`)
+  }
+  printHealthChecks(report.checks)
 }
 
 export function printSettings(settings: AppSettings, quiet: boolean): void {
