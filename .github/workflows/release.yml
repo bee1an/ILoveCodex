@@ -87,3 +87,97 @@ jobs:
           fi
 
           gh release upload "$TAG_NAME" "${files[@]}" --clobber
+
+  update-homebrew-tap:
+    if: github.event.deleted != true
+    needs: build
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HOMEBREW_TAP_REPOSITORY: ${{ vars.HOMEBREW_TAP_REPOSITORY }}
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve tap settings
+        id: tap
+        shell: bash
+        run: |
+          repository="${HOMEBREW_TAP_REPOSITORY:-bee1an/homebrew-ilovecodex}"
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
+
+          if [ -n "${HOMEBREW_TAP_TOKEN:-}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "HOMEBREW_TAP_TOKEN is not set; skipping Homebrew tap update."
+          fi
+
+      - name: Download macOS DMG asset
+        if: steps.tap.outputs.enabled == 'true'
+        id: asset
+        shell: bash
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          mkdir -p .release-assets
+          gh release download "$TAG_NAME" --pattern "ilovecodex-*.dmg" --dir .release-assets
+
+          asset_path="$(find .release-assets -maxdepth 1 -type f -name '*.dmg' | head -n1)"
+          if [ -z "$asset_path" ]; then
+            echo "Failed to locate a DMG asset in the GitHub release."
+            exit 1
+          fi
+
+          asset_name="$(basename "$asset_path")"
+          sha256="$(sha256sum "$asset_path" | awk '{print $1}')"
+
+          echo "name=$asset_name" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Clone Homebrew tap repository
+        if: steps.tap.outputs.enabled == 'true'
+        shell: bash
+        env:
+          TAP_REPOSITORY: ${{ steps.tap.outputs.repository }}
+        run: |
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${TAP_REPOSITORY}.git" .homebrew-tap
+
+      - name: Render Homebrew cask
+        if: steps.tap.outputs.enabled == 'true'
+        shell: bash
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          DMG_NAME: ${{ steps.asset.outputs.name }}
+          DMG_SHA256: ${{ steps.asset.outputs.sha256 }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          URL="https://github.com/${REPOSITORY}/releases/download/${TAG_NAME}/${DMG_NAME}"
+
+          node scripts/release/render-homebrew-cask.mjs \
+            --version "$VERSION" \
+            --sha256 "$DMG_SHA256" \
+            --url "$URL" \
+            --output ".homebrew-tap/Casks/ilovecodex.rb"
+
+      - name: Commit and push Homebrew cask update
+        if: steps.tap.outputs.enabled == 'true'
+        shell: bash
+        working-directory: .homebrew-tap
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          if git diff --quiet -- Casks/ilovecodex.rb; then
+            echo "Homebrew cask is already up to date."
+            exit 0
+          fi
+
+          VERSION="${TAG_NAME#v}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/ilovecodex.rb
+          git commit -m "Update ilovecodex to ${VERSION}"
+          git push origin HEAD

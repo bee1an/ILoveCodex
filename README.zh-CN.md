@@ -75,6 +75,24 @@ ilc settings set <key> <value>
 
 打包后的应用也会在 `resources/bin/` 下附带 `ilc` wrapper。安装后的应用启动一次后，会尝试把用户级 `ilc` shim 安装到一个可写的 `PATH` 目录中，这样之后就可以在终端里直接执行 `ilc ...`。
 
+## Homebrew Tap（macOS）
+
+macOS 版本可以通过自有 Homebrew tap 分发：
+
+```bash
+brew tap bee1an/ilovecodex
+brew install --cask ilovecodex
+```
+
+后续升级：
+
+```bash
+brew update
+brew upgrade --cask ilovecodex
+```
+
+现在 release workflow 已经预留了“发版后自动更新 tap 仓库”的流程。具体配置方法见 [docs/homebrew-tap.md](./docs/homebrew-tap.md)。
+
 ## 接口文档
 
 - [Postman Collection](./docs/postman-collection.json)

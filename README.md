@@ -75,6 +75,24 @@ Global CLI options:
 
 Packaged app builds also ship `ilc` wrappers under `resources/bin/`. After an installed app starts once, it will try to install a user-level `ilc` shim into a writable `PATH` directory so `ilc ...` can be run directly from later shells.
 
+## Homebrew Tap (macOS)
+
+The macOS build can be distributed through a custom Homebrew tap:
+
+```bash
+brew tap bee1an/ilovecodex
+brew install --cask ilovecodex
+```
+
+To upgrade later:
+
+```bash
+brew update
+brew upgrade --cask ilovecodex
+```
+
+The release workflow can automatically update the cask in your own tap repository after each tag release. Setup details are documented in [docs/homebrew-tap.md](./docs/homebrew-tap.md).
+
 ## API Reference
 
 - [Postman collection](./docs/postman-collection.json)
