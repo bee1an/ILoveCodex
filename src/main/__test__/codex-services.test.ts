@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { CodexPlatformAdapter, ProtectedPayload } from '../shared/codex-platform'
+import type { CodexPlatformAdapter, ProtectedPayload } from '../../shared/codex-platform'
 
 const mockedProcessState = vi.hoisted(() => {
   return {
@@ -23,7 +23,7 @@ vi.mock('node:child_process', () => ({
   spawn: mockedProcessState.spawn
 }))
 
-import { createCodexServices, resolveWindowsCodexDesktopExecutable } from './codex-services'
+import { createCodexServices, resolveWindowsCodexDesktopExecutable } from '../codex-services'
 
 function createPlatform(): CodexPlatformAdapter {
   return {
@@ -47,7 +47,7 @@ function createJwt(payload: Record<string, unknown>): string {
 function createAuthPayload(accountId: string, email: string) {
   return {
     auth_mode: 'chatgpt',
-    last_refresh: '2026-03-11T00:00:00.000Z',
+    last_refresh: new Date().toISOString(),
     tokens: {
       access_token: createJwt({
         exp: Math.floor(Date.now() / 1000) + 3600,
@@ -66,6 +66,61 @@ function createAuthPayload(accountId: string, email: string) {
       account_id: accountId
     }
   }
+}
+
+function createRefreshPayload(accountId: string, email: string, refreshToken: string) {
+  return {
+    access_token: createJwt({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      'https://api.openai.com/auth': {
+        chatgpt_account_id: accountId
+      }
+    }),
+    refresh_token: refreshToken,
+    id_token: createJwt({
+      email,
+      name: email.split('@')[0],
+      'https://api.openai.com/auth': {
+        chatgpt_account_id: accountId
+      }
+    })
+  }
+}
+
+function createJsonResponse(payload: unknown, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      'content-type': 'application/json'
+    }
+  })
+}
+
+function createUsageResponse(): Response {
+  return createJsonResponse({
+    user_id: 'user_123',
+    account_id: 'acct-a',
+    email: 'a@example.com',
+    plan_type: 'plus',
+    rate_limit: {
+      allowed: true,
+      limit_reached: false,
+      primary_window: {
+        used_percent: 12,
+        limit_window_seconds: 18_000,
+        reset_after_seconds: 60,
+        reset_at: 1_800_000_000
+      },
+      secondary_window: {
+        used_percent: 34,
+        limit_window_seconds: 604_800,
+        reset_after_seconds: 600,
+        reset_at: 1_800_500_000
+      }
+    },
+    credits: null,
+    additional_rate_limits: []
+  })
 }
 
 describe('createCodexServices', () => {
@@ -101,6 +156,11 @@ describe('createCodexServices', () => {
 
         if (file === 'which' || file === 'where.exe') {
           resolvedCallback(null, '/usr/local/bin/codex\n', '')
+          return
+        }
+
+        if (file === 'open') {
+          resolvedCallback(null, '', '')
           return
         }
 
@@ -245,6 +305,75 @@ describe('createCodexServices', () => {
     expect(mockedProcessState.spawnedCommands.at(-1)).toBe(
       '/Applications/Codex.app/Contents/MacOS/Codex'
     )
+  })
+
+  it('shows a running Codex process without launching a duplicate default instance', async () => {
+    const env = await createEnvironment()
+    const services = createCodexServices({
+      userDataPath: env.userDataPath,
+      defaultWorkspacePath: env.workspacePath,
+      platform: createPlatform()
+    })
+
+    await writeGlobalAuth(env.globalAuthPath, createAuthPayload('acct-a', 'a@example.com'))
+    await services.accounts.importCurrent()
+    const snapshot = await services.getSnapshot()
+
+    await services.codex.openIsolated(snapshot.accounts[0]!.id, env.workspacePath)
+    expect(mockedProcessState.spawnedCommands).toHaveLength(1)
+
+    await services.codex.show(env.workspacePath)
+
+    expect(mockedProcessState.spawnedCommands).toHaveLength(1)
+  })
+
+  it('opens default Codex without switching to the default bound account', async () => {
+    const env = await createEnvironment()
+    const services = createCodexServices({
+      userDataPath: env.userDataPath,
+      defaultWorkspacePath: env.workspacePath,
+      platform: createPlatform()
+    })
+
+    await writeGlobalAuth(env.globalAuthPath, createAuthPayload('acct-a', 'a@example.com'))
+    await services.accounts.importCurrent()
+    await writeGlobalAuth(env.globalAuthPath, createAuthPayload('acct-b', 'b@example.com'))
+    await services.accounts.importCurrent()
+
+    const snapshot = await services.getSnapshot()
+    const accountA = snapshot.accounts.find((account) => account.email === 'a@example.com')
+    const accountB = snapshot.accounts.find((account) => account.email === 'b@example.com')
+    expect(accountA).toBeTruthy()
+    expect(accountB).toBeTruthy()
+
+    await services.accounts.activate(accountA!.id)
+    await services.codex.instances.update('__default__', { bindAccountId: accountB!.id })
+
+    await services.codex.show(env.workspacePath)
+
+    let nextSnapshot = await services.getSnapshot()
+    let globalAuth = JSON.parse(await readFile(env.globalAuthPath, 'utf8')) as {
+      tokens?: { account_id?: string }
+    }
+    expect(nextSnapshot.activeAccountId).toBe(accountA!.id)
+    expect(globalAuth.tokens?.account_id).toBe('acct-a')
+    expect(mockedProcessState.spawnedCommands).toHaveLength(1)
+
+    processKillSpy.mockClear()
+    await services.codex.show(env.workspacePath)
+
+    nextSnapshot = await services.getSnapshot()
+    globalAuth = JSON.parse(await readFile(env.globalAuthPath, 'utf8')) as {
+      tokens?: { account_id?: string }
+    }
+    const terminationCalls = processKillSpy.mock.calls.filter(
+      ([, signal]) => signal && signal !== 0
+    )
+
+    expect(nextSnapshot.activeAccountId).toBe(accountA!.id)
+    expect(globalAuth.tokens?.account_id).toBe('acct-a')
+    expect(mockedProcessState.spawnedCommands).toHaveLength(1)
+    expect(terminationCalls).toHaveLength(0)
   })
 
   it('uses the configured desktop executable path for isolated launches when provided', async () => {
@@ -834,6 +963,138 @@ describe('createCodexServices', () => {
 
     const nextSnapshot = await services.accounts.removeMany(targets)
     expect(nextSnapshot.accounts.map((account) => account.email)).toEqual(['b@example.com'])
+  })
+
+  it('refreshes sessions when Codex-style last_refresh is stale', async () => {
+    const env = await createEnvironment()
+    const platform = createPlatform()
+    const services = createCodexServices({
+      userDataPath: env.userDataPath,
+      defaultWorkspacePath: env.workspacePath,
+      platform
+    })
+
+    await writeGlobalAuth(env.globalAuthPath, {
+      ...createAuthPayload('acct-a', 'a@example.com'),
+      last_refresh: '2026-03-11T00:00:00.000Z'
+    })
+    await services.accounts.importCurrent()
+
+    const snapshot = await services.getSnapshot()
+    const account = snapshot.accounts[0]
+
+    ;(platform.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      createJsonResponse(createRefreshPayload('acct-a', 'a@example.com', 'refresh-acct-a-2'))
+    )
+
+    await expect(services.accounts.refreshExpiringSession(account.id)).resolves.toBe(true)
+
+    expect(platform.fetch).toHaveBeenCalledTimes(1)
+    const storedAuth = await readFile(join(env.userDataPath, 'codex-accounts.json'), 'utf8')
+    expect(storedAuth).toContain('refresh-acct-a-2')
+    await expect(readFile(env.globalAuthPath, 'utf8')).resolves.toContain('refresh-acct-a-2')
+  })
+
+  it('uses one guarded refresh for concurrent session refreshes', async () => {
+    const env = await createEnvironment()
+    const platform = createPlatform()
+    const services = createCodexServices({
+      userDataPath: env.userDataPath,
+      defaultWorkspacePath: env.workspacePath,
+      platform
+    })
+
+    await writeGlobalAuth(env.globalAuthPath, {
+      ...createAuthPayload('acct-a', 'a@example.com'),
+      last_refresh: '2026-03-11T00:00:00.000Z'
+    })
+    await services.accounts.importCurrent()
+
+    const snapshot = await services.getSnapshot()
+    const account = snapshot.accounts[0]
+
+    ;(platform.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      createJsonResponse(createRefreshPayload('acct-a', 'a@example.com', 'refresh-acct-a-2'))
+    )
+
+    await expect(
+      Promise.all([
+        services.accounts.refreshExpiringSession(account.id),
+        services.accounts.refreshExpiringSession(account.id)
+      ])
+    ).resolves.toEqual([true, true])
+
+    expect(platform.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('syncs a Codex-refreshed global auth file before using the stored refresh token', async () => {
+    const env = await createEnvironment()
+    const platform = createPlatform()
+    const services = createCodexServices({
+      userDataPath: env.userDataPath,
+      defaultWorkspacePath: env.workspacePath,
+      platform
+    })
+
+    await writeGlobalAuth(env.globalAuthPath, {
+      ...createAuthPayload('acct-a', 'a@example.com'),
+      last_refresh: '2026-03-11T00:00:00.000Z'
+    })
+    await services.accounts.importCurrent()
+
+    const account = (await services.getSnapshot()).accounts[0]
+    await writeGlobalAuth(env.globalAuthPath, {
+      ...createAuthPayload('acct-a', 'a@example.com'),
+      last_refresh: new Date().toISOString(),
+      tokens: {
+        ...createAuthPayload('acct-a', 'a@example.com').tokens,
+        refresh_token: 'refresh-acct-a-from-codex'
+      }
+    })
+
+    await expect(services.accounts.refreshExpiringSession(account.id)).resolves.toBe(false)
+
+    expect(platform.fetch).not.toHaveBeenCalled()
+    const storedAuth = await readFile(join(env.userDataPath, 'codex-accounts.json'), 'utf8')
+    expect(storedAuth).toContain('refresh-acct-a-from-codex')
+  })
+
+  it('refreshes stale auth before reading usage and stores rotated refresh tokens', async () => {
+    const env = await createEnvironment()
+    const platform = createPlatform()
+    const services = createCodexServices({
+      userDataPath: env.userDataPath,
+      defaultWorkspacePath: env.workspacePath,
+      platform
+    })
+
+    await writeGlobalAuth(env.globalAuthPath, {
+      ...createAuthPayload('acct-a', 'a@example.com'),
+      last_refresh: '2026-03-11T00:00:00.000Z'
+    })
+    await services.accounts.importCurrent()
+
+    const account = (await services.getSnapshot()).accounts[0]
+
+    ;(platform.fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(
+        createJsonResponse(createRefreshPayload('acct-a', 'a@example.com', 'refresh-acct-a-2'))
+      )
+      .mockResolvedValueOnce(createUsageResponse())
+
+    await expect(services.usage.read(account.id)).resolves.toMatchObject({
+      planType: 'plus',
+      primary: {
+        usedPercent: 12
+      },
+      secondary: {
+        usedPercent: 34
+      }
+    })
+
+    expect(platform.fetch).toHaveBeenCalledTimes(2)
+    const storedAuth = await readFile(join(env.userDataPath, 'codex-accounts.json'), 'utf8')
+    expect(storedAuth).toContain('refresh-acct-a-2')
   })
 
   it('refreshes expiring stored sessions and syncs the current auth file', async () => {

@@ -71,6 +71,7 @@ function localeText(language: AppSettings['language']): {
   noVisibleAccount: string
   activePrefix: string
   bestAccount: string
+  openCodex: string
   openMainWindow: string
   checkForUpdates: string
   checkingForUpdates: string
@@ -95,6 +96,7 @@ function localeText(language: AppSettings['language']): {
     noVisibleAccount: language === 'en' ? 'No account to display' : '还没有可显示的账号',
     activePrefix: language === 'en' ? 'Active · ' : '当前 · ',
     bestAccount: language === 'en' ? 'Switch to best account' : '切换到最优账号',
+    openCodex: language === 'en' ? 'Open Codex' : '打开 Codex',
     openMainWindow: language === 'en' ? 'Open main window' : '打开主界面',
     checkForUpdates: language === 'en' ? 'Check for updates' : '检查更新',
     checkingForUpdates: language === 'en' ? 'Checking for updates…' : '检查更新中…',
@@ -451,6 +453,14 @@ function buildTrayMenu(snapshot: AppSnapshot): ReturnType<typeof Menu.buildFromT
     {
       label: text.openMainWindow,
       click: () => showMainWindow()
+    },
+    {
+      label: text.openCodex,
+      click: () => {
+        void codexServices.codex.show().then(() => {
+          void refreshTrayTitle()
+        })
+      }
     },
     {
       label: bestAccountMenuLabel(snapshot),
@@ -840,6 +850,10 @@ app.whenReady().then(async () => {
   })
   ipcMain.handle('codex:open-main-window', async () => {
     showMainWindow()
+    return refreshTrayTitle()
+  })
+  ipcMain.handle('codex:open-codex', async () => {
+    await codexServices.codex.show()
     return refreshTrayTitle()
   })
   ipcMain.handle('codex:import-current-account', async () => {

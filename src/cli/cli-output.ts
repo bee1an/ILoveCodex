@@ -48,6 +48,7 @@ Usage:
   ilc login device [--json] [--timeout <sec>]
   ilc login port status [--json]
   ilc login port kill [--json]
+  ilc codex show [--json]
   ilc codex open [account-id] [--json]
   ilc codex open-isolated <account-id> [--json]
   ilc doctor [--json]

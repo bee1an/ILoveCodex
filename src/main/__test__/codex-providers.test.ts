@@ -4,8 +4,8 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { CodexProviderStore } from './codex-providers'
-import type { CodexPlatformAdapter, ProtectedPayload } from '../shared/codex-platform'
+import { CodexProviderStore } from '../codex-providers'
+import type { CodexPlatformAdapter, ProtectedPayload } from '../../shared/codex-platform'
 
 function createPlatform(): CodexPlatformAdapter {
   return {
@@ -24,7 +24,9 @@ describe('CodexProviderStore', () => {
 
   afterEach(async () => {
     await Promise.all(
-      createdDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true }))
+      createdDirectories
+        .splice(0)
+        .map((directory) => rm(directory, { recursive: true, force: true }))
     )
   })
 

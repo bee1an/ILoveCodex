@@ -105,9 +105,7 @@ function defaultState(): PersistedState {
   }
 }
 
-function normalizePersistedState(
-  parsed: PersistedState | LegacyPersistedState
-): PersistedState {
+function normalizePersistedState(parsed: PersistedState | LegacyPersistedState): PersistedState {
   return {
     ...defaultState(),
     ...parsed,
@@ -656,6 +654,89 @@ export class CodexAccountStore {
         return true
       } catch {
         return false
+      }
+    })
+  }
+
+  async importCurrentAuthPayloadForAccount(accountId: string): Promise<{
+    account: AccountSummary
+    auth: CodexAuthPayload
+    changed: boolean
+  } | null> {
+    return this.runStateTask(async () => {
+      const state = await this.readState()
+
+      let currentAuth: CodexAuthPayload
+      try {
+        currentAuth = await this.readCodexAuthFile()
+      } catch {
+        return null
+      }
+
+      const existing = findMatchingAccount(state.accounts, currentAuth)
+      if (!existing || existing.id !== accountId) {
+        return null
+      }
+
+      const rawAuth = JSON.stringify(currentAuth)
+      if (this.unprotect(existing.authPayload) === rawAuth) {
+        return {
+          account: toAccountSummary(existing),
+          auth: currentAuth,
+          changed: false
+        }
+      }
+
+      const previousId = existing.id
+      const identity = resolveAccountId(currentAuth)
+      const summary = summarizeAuth(currentAuth)
+      const now = new Date().toISOString()
+
+      if (previousId !== identity) {
+        if (state.activeAccountId === previousId) {
+          state.activeAccountId = identity
+        }
+
+        state.settings.statusBarAccountIds = state.settings.statusBarAccountIds.map((storedId) =>
+          storedId === previousId ? identity : storedId
+        )
+
+        if (state.usageByAccountId[previousId]) {
+          state.usageByAccountId = {
+            ...state.usageByAccountId,
+            [identity]: state.usageByAccountId[previousId]
+          }
+          delete state.usageByAccountId[previousId]
+        }
+
+        if (state.usageErrorByAccountId[previousId]) {
+          state.usageErrorByAccountId = {
+            ...state.usageErrorByAccountId,
+            [identity]: state.usageErrorByAccountId[previousId]
+          }
+          delete state.usageErrorByAccountId[previousId]
+        }
+      }
+
+      existing.id = identity
+      existing.email = summary.email
+      existing.name = summary.name
+      existing.accountId = summary.accountId
+      existing.tagIds = dedupeAccountTagIds(existing.tagIds ?? [])
+      existing.updatedAt = now
+      existing.authPayload = this.protect(rawAuth)
+      state.activeAccountId = identity
+
+      if (state.usageErrorByAccountId[identity]) {
+        delete state.usageErrorByAccountId[identity]
+      }
+
+      await this.writeState(state)
+
+      return {
+        account: toAccountSummary(existing),
+        auth: currentAuth,
+        changed: true
       }
     })
   }

@@ -449,8 +449,9 @@ export function resolveBestAccount(
   })
 
   return (
-    rankedAccounts.find((account) => accountQuotaScore(usageByAccountId[account.id]).hasAvailableQuota) ??
-    null
+    rankedAccounts.find(
+      (account) => accountQuotaScore(usageByAccountId[account.id]).hasAvailableQuota
+    ) ?? null
   )
 }
 

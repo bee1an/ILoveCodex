@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createUsagePollingController } from './usage-poller'
-import type { AccountRateLimits, AccountSummary, AppSnapshot } from '../shared/codex'
+import { createUsagePollingController } from '../usage-poller'
+import type { AccountRateLimits, AccountSummary, AppSnapshot } from '../../shared/codex'
 
 function createAccount(id: string, overrides: Partial<AccountSummary> = {}): AccountSummary {
   return {

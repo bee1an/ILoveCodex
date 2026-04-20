@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { runCli } from './run-cli'
+import { runCli } from '../run-cli'
 import type {
   AccountRateLimits,
   AppSettings,
@@ -8,7 +8,7 @@ import type {
   CurrentSessionSummary,
   LoginEvent,
   PortOccupant
-} from '../shared/codex'
+} from '../../shared/codex'
 
 function createSnapshot(overrides: Partial<AppSnapshot> = {}): AppSnapshot {
   return {
@@ -92,6 +92,7 @@ interface CliTestRuntime {
       killPortOccupant: ReturnType<typeof vi.fn>
     }
     codex: {
+      show: ReturnType<typeof vi.fn>
       open: ReturnType<typeof vi.fn>
       openIsolated: ReturnType<typeof vi.fn>
       instances: {
@@ -350,6 +351,7 @@ function createRuntime(): {
         killPortOccupant: vi.fn(async () => portOccupant)
       },
       codex: {
+        show: vi.fn(async () => snapshot),
         open: vi.fn(async () => snapshot),
         openIsolated: vi.fn(async () => snapshot),
         instances: {
@@ -772,6 +774,10 @@ describe('runCli', () => {
   it('covers codex open and settings commands', async () => {
     const { runtime } = createRuntime()
 
+    await expect(runCli(runtime as never, ['codex', 'show', '--json'])).resolves.toBe(0)
+    expect(runtime.services.codex.show).toHaveBeenCalledOnce()
+
+    logSpy.mockClear()
     await expect(runCli(runtime as never, ['codex', 'open', 'acct_1', '--json'])).resolves.toBe(0)
     expect(runtime.services.codex.open).toHaveBeenCalledWith('acct_1')
 

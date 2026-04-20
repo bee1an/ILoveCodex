@@ -457,9 +457,7 @@ async function execute(
           }
           if (input.bindAccountId !== undefined) {
             updateInput.bindAccountId =
-              typeof input.bindAccountId === 'string'
-                ? input.bindAccountId.trim() || null
-                : null
+              typeof input.bindAccountId === 'string' ? input.bindAccountId.trim() || null : null
           }
           if (input.extraArgs !== undefined) {
             updateInput.extraArgs = input.extraArgs
@@ -700,6 +698,11 @@ async function execute(
       return { code: EXIT_OK, payload: toCliResult(result) }
     }
     case 'codex': {
+      if (subcommand === 'show') {
+        const snapshot = await runtime.services.codex.show()
+        printIfNeeded('Opened Codex', silent)
+        return { code: EXIT_OK, payload: toCliResult(snapshot) }
+      }
       if (subcommand === 'open') {
         const snapshot = await runtime.services.codex.open(rest[0])
         const active = snapshot.accounts.find((account) => account.id === snapshot.activeAccountId)

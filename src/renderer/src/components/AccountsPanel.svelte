@@ -22,6 +22,7 @@
     planTagClass,
     providerLabel,
     progressWidth,
+    weeklyResetTimeToneClass,
     type LocalizedCopy
   } from './app-view'
 
@@ -80,6 +81,7 @@
   let providerMutationBusy = false
   let editingProviderId = ''
   let selectedAccountIds: string[] = []
+  let accountWorkbenchExpanded = false
   let providerDrafts: Record<
     string,
     { name: string; baseUrl: string; apiKey: string; model: string; fastMode: boolean }
@@ -144,6 +146,8 @@
   $: selectedVisibleCount = selectedAccountIds.length
   $: allVisibleSelected =
     visibleAccounts.length > 0 && selectedVisibleCount === visibleAccounts.length
+  $: showAccountFilterTools = accounts.length > 0 || tags.length > 0
+  $: showAccountSelectionTools = visibleAccounts.length > 0 || selectedVisibleCount > 0
 
   function selectAllVisibleAccounts(): void {
     selectedAccountIds = visibleAccounts.map((account) => account.id)
@@ -188,6 +192,25 @@
     }
 
     return accounts.filter((account) => account.tagIds.includes(tagId)).length
+  }
+
+  function tagFilterLabel(tagId: string): string {
+    if (tagId === 'all') {
+      return copy.allTags
+    }
+
+    if (tagId === untaggedFilterId) {
+      return copy.untagged
+    }
+
+    return tags.find((tag) => tag.id === tagId)?.name ?? copy.allTags
+  }
+
+  function filterChipLabel(tagId: string): string {
+    const label = tagFilterLabel(tagId)
+    const count = filterCount(tagId)
+
+    return count > 0 ? `${label} · ${count}` : label
   }
 
   function taggedAccountCount(tagId: string): number {
@@ -712,113 +735,199 @@
       {/if}
     </div>
   {:else if currentView === 'accounts'}
-    <div class="theme-workbench-toolbar grid gap-2 rounded-[0.9rem] border border-black/8 bg-black/[0.02] px-2.5 py-2.5">
-      <div class="grid gap-1">
-        <p class="text-[10px] font-medium uppercase tracking-[0.08em] text-faint">
-          {copy.filterByTag}
-        </p>
-        <div class="flex flex-wrap gap-1">
-          <button
-            class={`theme-filter-chip rounded-full px-2 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
-              activeTagFilter === 'all'
-                ? 'theme-filter-chip-active bg-black text-white'
-                : 'theme-filter-chip-idle border border-black/10 bg-black/[0.03] text-black/72 hover:bg-black/[0.06]'
-            }`}
-            type="button"
-            onclick={() => {
-              activeTagFilter = 'all'
-            }}
-          >
-            {copy.allTags} · {filterCount('all')}
-          </button>
-          <button
-            class={`theme-filter-chip rounded-full px-2 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
-              activeTagFilter === untaggedFilterId
-                ? 'theme-filter-chip-active bg-black text-white'
-                : 'theme-filter-chip-idle border border-black/10 bg-black/[0.03] text-black/72 hover:bg-black/[0.06]'
-            }`}
-            type="button"
-            onclick={() => {
-              activeTagFilter = untaggedFilterId
-            }}
-          >
-            {copy.untagged} · {filterCount(untaggedFilterId)}
-          </button>
-          {#each tags as tag (tag.id)}
-            <button
-              class={`theme-filter-chip rounded-full px-2 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
-                activeTagFilter === tag.id
-                  ? 'theme-filter-chip-active bg-black text-white'
-                  : 'theme-filter-chip-idle border border-black/10 bg-black/[0.03] text-black/72 hover:bg-black/[0.06]'
-              }`}
-              type="button"
-              onclick={() => {
-                activeTagFilter = tag.id
-              }}
-            >
-              {tag.name} · {filterCount(tag.id)}
-            </button>
-          {/each}
-        </div>
-      </div>
-
-      <div
-        class={`theme-selection-toolbar flex flex-wrap items-center justify-between gap-1.5 border-t border-black/6 pt-2 ${
-          selectedVisibleCount ? 'theme-selection-toolbar-active' : 'theme-selection-toolbar-idle'
-        }`}
+    <div
+      class="theme-workbench-toolbar grid gap-2 rounded-[0.9rem] border border-black/8 bg-black/[0.02] px-2.5 py-2.5"
+    >
+      <button
+        class="theme-workbench-toggle flex w-full items-center justify-between gap-3 rounded-[0.8rem] border border-black/8 bg-white/[0.84] px-3 py-2 text-left transition-colors duration-140 hover:bg-white"
+        type="button"
+        aria-expanded={accountWorkbenchExpanded}
+        aria-controls="account-workbench-panel"
+        aria-label={accountWorkbenchExpanded
+          ? copy.hideFiltersAndBulkActions
+          : copy.showFiltersAndBulkActions}
+        title={accountWorkbenchExpanded
+          ? copy.hideFiltersAndBulkActions
+          : copy.showFiltersAndBulkActions}
+        onclick={() => {
+          accountWorkbenchExpanded = !accountWorkbenchExpanded
+        }}
       >
-        <div class="grid gap-0.5">
-          <div class="text-[12px] font-medium leading-none text-ink">
-            {copy.selectedAccountCount(selectedVisibleCount)}
-          </div>
-          <div class="text-[9px] uppercase tracking-[0.08em] text-faint">
-            {copy.accountCount(visibleAccounts.length)}
-          </div>
-        </div>
-        <div class="flex flex-wrap items-center justify-end gap-1.5">
-          <div class="theme-selection-group inline-flex items-center rounded-[0.7rem] border border-black/8 bg-white/[0.72] p-0.5">
-            <button
-              class="theme-selection-group-button inline-flex min-w-[104px] items-center justify-center gap-1.5 rounded-[0.55rem] px-2.5 py-1.5 text-[11px] font-medium leading-none transition-colors duration-140"
-              type="button"
-              onclick={selectAllVisibleAccounts}
-              disabled={loginActionBusy || !visibleAccounts.length || allVisibleSelected}
-            >
-              <span class="i-lucide-check-check h-3.5 w-3.5"></span>
-              <span>{copy.selectAllVisibleAccounts}</span>
-            </button>
-            <div class="theme-selection-divider h-5 w-px bg-black/8"></div>
-            <button
-              class="theme-selection-group-button inline-flex min-w-[92px] items-center justify-center gap-1.5 rounded-[0.55rem] px-2.5 py-1.5 text-[11px] font-medium leading-none transition-colors duration-140"
-              type="button"
-              onclick={clearSelectedAccounts}
-              disabled={loginActionBusy || !selectedVisibleCount}
-            >
-              <span class="i-lucide-eraser h-3.5 w-3.5"></span>
-              <span>{copy.clearSelectedAccounts}</span>
-            </button>
+        <div class="min-w-0 grid gap-1">
+          <div class="flex items-center gap-1.5">
+            <span class="i-lucide-sliders-horizontal h-3.5 w-3.5 text-muted-strong"></span>
+            <span class="text-[10px] font-medium uppercase tracking-[0.08em] text-faint">
+              {copy.filtersAndBulkActions}
+            </span>
           </div>
 
-          <button
-            class="theme-selection-export inline-flex min-w-[104px] items-center justify-center gap-1.5 rounded-[0.7rem] border border-black/8 bg-white/[0.72] px-2.5 py-1.5 text-[11px] font-medium leading-none text-ink transition-colors duration-140 hover:bg-black/[0.04]"
-            type="button"
-            onclick={() => void exportCurrentSelection()}
-            disabled={loginActionBusy || !selectedVisibleCount}
-          >
-            <span class="i-lucide-download h-3.5 w-3.5"></span>
-            <span>{copy.exportSelectedAccounts}</span>
-          </button>
+          <div class="flex flex-wrap items-center gap-1.5">
+            {#if activeTagFilter !== 'all'}
+              <span
+                class="theme-workbench-summary-pill inline-flex items-center gap-1 rounded-full border border-black/8 bg-white px-2 py-1 text-[11px] font-medium text-ink"
+              >
+                <span class="i-lucide-tags h-3 w-3 text-muted-strong"></span>
+                <span>{tagFilterLabel(activeTagFilter)}</span>
+              </span>
+            {/if}
 
-          <button
-            class="theme-selection-delete inline-flex min-w-[104px] items-center justify-center gap-1.5 rounded-[0.7rem] border border-red-500/14 bg-red-500/[0.08] px-2.5 py-1.5 text-[11px] font-medium leading-none text-danger transition-colors duration-140 hover:bg-red-500/[0.12]"
-            type="button"
-            onclick={() => void removeCurrentSelection()}
-            disabled={loginActionBusy || !selectedVisibleCount}
-          >
-            <span class="i-lucide-trash-2 h-3.5 w-3.5"></span>
-            <span>{copy.deleteSelectedAccounts}</span>
-          </button>
+            {#if selectedVisibleCount}
+              <span
+                class="theme-workbench-summary-pill inline-flex items-center gap-1 rounded-full border border-black/8 bg-white px-2 py-1 text-[11px] font-medium text-ink"
+              >
+                <span class="i-lucide-check-check h-3 w-3 text-muted-strong"></span>
+                <span>{copy.selectedAccountCount(selectedVisibleCount)}</span>
+              </span>
+            {/if}
+
+            {#if activeTagFilter === 'all' && !selectedVisibleCount}
+              <span class="text-[11px] text-muted-strong">
+                {accounts.length
+                  ? copy.accountCount(visibleAccounts.length)
+                  : copy.emptyFilterTools}
+              </span>
+            {/if}
+          </div>
         </div>
-      </div>
+
+        <span
+          class={`theme-workbench-chevron inline-flex h-7 w-7 items-center justify-center rounded-full border border-black/8 bg-white text-black/58 transition-[transform,background-color,color] duration-180 ${
+            accountWorkbenchExpanded ? 'rotate-180' : ''
+          }`}
+        >
+          <span class="i-lucide-chevron-down h-4 w-4"></span>
+        </span>
+      </button>
+
+      {#if accountWorkbenchExpanded}
+        <div id="account-workbench-panel" class="grid gap-3 px-0.5 pb-0.5">
+          {#if showAccountFilterTools}
+            <div class="grid gap-1.5">
+              <p class="text-[10px] font-medium uppercase tracking-[0.08em] text-faint">
+                {copy.filterByTag}
+              </p>
+              <div class="flex flex-wrap gap-1.5">
+                <button
+                  class={`theme-filter-chip rounded-full px-2 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
+                    activeTagFilter === 'all'
+                      ? 'theme-filter-chip-active bg-black text-white'
+                      : 'theme-filter-chip-idle border border-black/10 bg-black/[0.03] text-black/72 hover:bg-black/[0.06]'
+                  }`}
+                  type="button"
+                  onclick={() => {
+                    activeTagFilter = 'all'
+                  }}
+                >
+                  {filterChipLabel('all')}
+                </button>
+                <button
+                  class={`theme-filter-chip rounded-full px-2 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
+                    activeTagFilter === untaggedFilterId
+                      ? 'theme-filter-chip-active bg-black text-white'
+                      : 'theme-filter-chip-idle border border-black/10 bg-black/[0.03] text-black/72 hover:bg-black/[0.06]'
+                  }`}
+                  type="button"
+                  onclick={() => {
+                    activeTagFilter = untaggedFilterId
+                  }}
+                >
+                  {filterChipLabel(untaggedFilterId)}
+                </button>
+                {#each tags as tag (tag.id)}
+                  <button
+                    class={`theme-filter-chip rounded-full px-2 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
+                      activeTagFilter === tag.id
+                        ? 'theme-filter-chip-active bg-black text-white'
+                        : 'theme-filter-chip-idle border border-black/10 bg-black/[0.03] text-black/72 hover:bg-black/[0.06]'
+                    }`}
+                    type="button"
+                    onclick={() => {
+                      activeTagFilter = tag.id
+                    }}
+                  >
+                    {filterChipLabel(tag.id)}
+                  </button>
+                {/each}
+              </div>
+            </div>
+          {/if}
+
+          {#if showAccountSelectionTools}
+            <div
+              class={`theme-selection-toolbar flex flex-wrap items-center justify-between gap-2 border-t border-black/6 pt-3 ${
+                selectedVisibleCount
+                  ? 'theme-selection-toolbar-active'
+                  : 'theme-selection-toolbar-idle'
+              }`}
+            >
+              <div class="grid gap-0.5">
+                <div class="text-[12px] font-medium leading-none text-ink">
+                  {selectedVisibleCount
+                    ? copy.selectedAccountCount(selectedVisibleCount)
+                    : copy.accountCount(visibleAccounts.length)}
+                </div>
+                {#if activeTagFilter !== 'all'}
+                  <div class="text-[9px] uppercase tracking-[0.08em] text-faint">
+                    {copy.filterByTag} · {tagFilterLabel(activeTagFilter)}
+                  </div>
+                {/if}
+              </div>
+
+              <div class="flex flex-wrap items-center justify-end gap-1.5">
+                {#if visibleAccounts.length && !allVisibleSelected}
+                  <button
+                    class="theme-selection-group-button inline-flex min-w-[108px] items-center justify-center gap-1.5 rounded-[0.7rem] border border-black/8 bg-white/[0.72] px-2.5 py-1.5 text-[11px] font-medium leading-none transition-colors duration-140"
+                    type="button"
+                    onclick={selectAllVisibleAccounts}
+                    disabled={loginActionBusy || !visibleAccounts.length}
+                  >
+                    <span class="i-lucide-check-check h-3.5 w-3.5"></span>
+                    <span>{copy.selectAllVisibleAccounts}</span>
+                  </button>
+                {/if}
+
+                {#if selectedVisibleCount}
+                  <button
+                    class="theme-selection-group-button inline-flex min-w-[96px] items-center justify-center gap-1.5 rounded-[0.7rem] border border-black/8 bg-white/[0.72] px-2.5 py-1.5 text-[11px] font-medium leading-none transition-colors duration-140"
+                    type="button"
+                    onclick={clearSelectedAccounts}
+                    disabled={loginActionBusy}
+                  >
+                    <span class="i-lucide-eraser h-3.5 w-3.5"></span>
+                    <span>{copy.clearSelectedAccounts}</span>
+                  </button>
+
+                  <button
+                    class="theme-selection-export inline-flex min-w-[104px] items-center justify-center gap-1.5 rounded-[0.7rem] border border-black/8 bg-white/[0.72] px-2.5 py-1.5 text-[11px] font-medium leading-none text-ink transition-colors duration-140 hover:bg-black/[0.04]"
+                    type="button"
+                    onclick={() => void exportCurrentSelection()}
+                    disabled={loginActionBusy}
+                  >
+                    <span class="i-lucide-download h-3.5 w-3.5"></span>
+                    <span>{copy.exportSelectedAccounts}</span>
+                  </button>
+
+                  <button
+                    class="theme-selection-delete inline-flex min-w-[104px] items-center justify-center gap-1.5 rounded-[0.7rem] border border-red-500/14 bg-red-500/[0.08] px-2.5 py-1.5 text-[11px] font-medium leading-none text-danger transition-colors duration-140 hover:bg-red-500/[0.12]"
+                    type="button"
+                    onclick={() => void removeCurrentSelection()}
+                    disabled={loginActionBusy}
+                  >
+                    <span class="i-lucide-trash-2 h-3.5 w-3.5"></span>
+                    <span>{copy.deleteSelectedAccounts}</span>
+                  </button>
+                {/if}
+              </div>
+            </div>
+          {:else if !showAccountFilterTools}
+            <div
+              class="theme-workbench-empty rounded-[0.85rem] border border-dashed border-black/8 bg-white/[0.62] px-3 py-3 text-[12px] text-muted-strong"
+            >
+              {copy.emptyFilterTools}
+            </div>
+          {/if}
+        </div>
+      {/if}
     </div>
 
     {#if visibleAccounts.length}
@@ -847,7 +956,11 @@
           aria-label={copy.accountCount(sortableAccounts.length)}
         >
           {#each sortableAccounts as account (account.id)}
-            {@const usageBadge = accountUsageBadge(usageErrorByAccountId[account.id], account, copy)}
+            {@const usageBadge = accountUsageBadge(
+              usageErrorByAccountId[account.id],
+              account,
+              copy
+            )}
             <article
               class={`group grid items-center gap-3 rounded-[0.95rem] border px-3 py-2.5 transition-[border-color,box-shadow,transform,background-color] duration-180 md:grid-cols-[auto_minmax(0,1fr)_auto] ${
                 selectedAccountIds.includes(account.id)
@@ -1004,12 +1117,25 @@
                 >
                   <div
                     class="theme-soft-panel inline-flex items-center gap-2 rounded-full border border-black/6 bg-black/[0.03] px-2.5 py-1.5 text-[11px] text-muted-strong"
-                    title={`${copy.sessionReset} · ${formatRelativeReset(
-                      usageByAccountId[account.id]?.primary?.resetsAt,
-                      language
-                    )}`}
+                    title={`${copy.sessionQuota} · ${
+                      usageByAccountId[account.id]?.primary
+                        ? `${remainingPercent(usageByAccountId[account.id].primary?.usedPercent)}%`
+                        : '--'
+                    }`}
                   >
-                    <span class="font-medium">{copy.sessionQuota}</span>
+                    <span class="font-medium">{copy.sessionReset}</span>
+                    {#if usageLoadingByAccountId[account.id] && !usageByAccountId[account.id]}
+                      <span>…</span>
+                    {:else if usageByAccountId[account.id]?.primary}
+                      <span class="theme-reset-time-neutral"
+                        >{formatRelativeReset(
+                          usageByAccountId[account.id]?.primary?.resetsAt,
+                          language
+                        )}</span
+                      >
+                    {:else}
+                      <span>--</span>
+                    {/if}
                     <span
                       class="theme-progress-track h-1.5 w-14 overflow-hidden rounded-full bg-black/8"
                     >
@@ -1033,12 +1159,28 @@
 
                   <div
                     class="theme-soft-panel inline-flex items-center gap-2 rounded-full border border-black/6 bg-black/[0.03] px-2.5 py-1.5 text-[11px] text-muted-strong"
-                    title={`${copy.weeklyReset} · ${formatRelativeReset(
-                      usageByAccountId[account.id]?.secondary?.resetsAt,
-                      language
-                    )}`}
+                    title={`${copy.weeklyQuota} · ${
+                      usageByAccountId[account.id]?.secondary
+                        ? `${remainingPercent(usageByAccountId[account.id].secondary?.usedPercent)}%`
+                        : '--'
+                    }`}
                   >
-                    <span class="font-medium">{copy.weeklyQuota}</span>
+                    <span class="font-medium">{copy.weeklyReset}</span>
+                    {#if usageLoadingByAccountId[account.id] && !usageByAccountId[account.id]}
+                      <span>…</span>
+                    {:else if usageByAccountId[account.id]?.secondary}
+                      <span
+                        class={weeklyResetTimeToneClass(
+                          usageByAccountId[account.id]?.secondary?.resetsAt
+                        )}
+                        >{formatRelativeReset(
+                          usageByAccountId[account.id]?.secondary?.resetsAt,
+                          language
+                        )}</span
+                      >
+                    {:else}
+                      <span>--</span>
+                    {/if}
                     <span
                       class="theme-progress-track h-1.5 w-14 overflow-hidden rounded-full bg-black/8"
                     >
@@ -1389,6 +1531,12 @@
     opacity: 1;
   }
 
+  .theme-workbench-toggle:hover .theme-workbench-chevron,
+  .theme-workbench-toggle:focus-visible .theme-workbench-chevron {
+    background: rgba(24, 24, 27, 0.06);
+    color: var(--ink);
+  }
+
   .theme-selection-group-button:disabled,
   .theme-selection-export:disabled,
   .theme-selection-delete:disabled {
@@ -1539,6 +1687,25 @@
     border-color: var(--line) !important;
   }
 
+  :global(html[data-theme='dark']) .theme-workbench-toggle,
+  :global(html[data-theme='dark']) .theme-workbench-summary-pill,
+  :global(html[data-theme='dark']) .theme-workbench-chevron,
+  :global(html[data-theme='dark']) .theme-workbench-empty {
+    background: var(--panel-strong) !important;
+    border-color: var(--line) !important;
+    color: var(--ink) !important;
+  }
+
+  :global(html[data-theme='dark']) .theme-workbench-toggle:hover {
+    background: color-mix(in srgb, var(--surface-hover) 84%, var(--panel-strong) 16%) !important;
+  }
+
+  :global(html[data-theme='dark']) .theme-workbench-toggle:hover .theme-workbench-chevron,
+  :global(html[data-theme='dark']) .theme-workbench-toggle:focus-visible .theme-workbench-chevron {
+    background: var(--surface-hover) !important;
+    color: var(--ink) !important;
+  }
+
   :global(html[data-theme='dark']) .theme-filter-chip-idle {
     background: var(--surface-soft) !important;
     border-color: var(--line) !important;
@@ -1595,6 +1762,10 @@
     border-color: color-mix(in srgb, var(--line) 78%, transparent) !important;
   }
 
+  .theme-reset-time-neutral {
+    color: var(--ink-soft-strong);
+  }
+
   :global(html[data-theme='dark']) .theme-selection-delete {
     border-color: rgb(239 68 68 / 0.18) !important;
     background: rgb(239 68 68 / 0.1) !important;
@@ -1620,6 +1791,10 @@
 
   :global(html[data-theme='dark']) .theme-account-selector-input {
     accent-color: var(--ink);
+  }
+
+  :global(html[data-theme='dark']) .theme-reset-time-neutral {
+    color: rgb(255 255 255 / 0.88) !important;
   }
 
   :global(html[data-theme='dark']) .theme-selection-danger:hover {

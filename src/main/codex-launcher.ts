@@ -13,6 +13,10 @@ const codexProcessPattern =
   process.platform === 'darwin'
     ? '(/Applications/Codex\\.app/Contents/MacOS/Codex|(^|/)codex( |$))'
     : '(^|/)codex( |$)'
+const codexDesktopProcessPattern =
+  process.platform === 'darwin'
+    ? '(/Applications/Codex\\.app/Contents/MacOS/Codex|(^|/)codex( .*| )app( |$))'
+    : '(^|/)codex( .*| )app( |$)'
 
 function parseExtraArgs(raw: string): string[] {
   const tokens = raw.match(/"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|[^\s]+/g) ?? []
@@ -77,8 +81,17 @@ export async function resolveWindowsCodexDesktopExecutable(): Promise<string | n
 }
 
 async function listCodexProcessIds(): Promise<number[]> {
+  return listProcessIds(codexProcessPattern)
+}
+
+async function listCodexDesktopProcessIds(): Promise<number[]> {
+  return listProcessIds(codexDesktopProcessPattern)
+}
+
+async function listProcessIds(pattern: string): Promise<number[]> {
   try {
-    const { stdout } = await execFile('pgrep', ['-f', codexProcessPattern])
+    const result = (await execFile('pgrep', ['-f', pattern])) as { stdout?: string } | string
+    const stdout = typeof result === 'string' ? result : (result.stdout ?? '')
     return stdout
       .split('\n')
       .map((line) => Number(line.trim()))
@@ -86,6 +99,10 @@ async function listCodexProcessIds(): Promise<number[]> {
   } catch {
     return []
   }
+}
+
+export async function resolveAnyCodexDesktopPid(): Promise<number | undefined> {
+  return (await listCodexDesktopProcessIds()).find((pid) => isPidRunning(pid))
 }
 
 function isPidRunning(pid?: number): boolean {
@@ -171,6 +188,40 @@ export async function stopCodexProcess(pid: number): Promise<void> {
     } catch {
       // Ignore a process that exited between checks.
     }
+  }
+}
+
+function resolveMacosAppBundlePath(value?: string): string | undefined {
+  const normalized = value?.trim()
+  if (!normalized) {
+    return undefined
+  }
+
+  const bundleEnd = normalized.indexOf('.app')
+  if (bundleEnd < 0) {
+    return undefined
+  }
+
+  return normalized.slice(0, bundleEnd + '.app'.length)
+}
+
+export async function revealCodexDesktop(options?: {
+  desktopExecutablePath?: string
+}): Promise<boolean> {
+  if (process.platform !== 'darwin') {
+    return false
+  }
+
+  try {
+    const appBundlePath = resolveMacosAppBundlePath(options?.desktopExecutablePath)
+    if (appBundlePath) {
+      await execFile('open', [appBundlePath])
+    } else {
+      await execFile('open', ['-a', 'Codex'])
+    }
+    return true
+  } catch {
+    return false
   }
 }
 

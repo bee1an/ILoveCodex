@@ -10,7 +10,7 @@ import {
   usagePollingIntervalMs,
   type AccountRateLimits,
   type AccountSummary
-} from './codex'
+} from '../codex'
 
 function createAccount(id: string, overrides: Partial<AccountSummary> = {}): AccountSummary {
   return {

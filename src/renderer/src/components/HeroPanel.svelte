@@ -1,41 +1,28 @@
 <script lang="ts">
   import type {
-    AccountSummary,
+    AppMeta,
     AppSettings,
     AppUpdateState,
     CreateCustomProviderInput,
-    LoginEvent,
-    LoginMethod
+    LoginEvent
   } from '../../../shared/codex'
-  import { accountEmail, loginTone, type LocalizedCopy } from './app-view'
+  import { loginTone, type LocalizedCopy } from './app-view'
 
   export let brandMark: string
   export let heroClass: string
   export let compactGhostButton: string
-  export let iconToolbarButton: string
   export let copy: LocalizedCopy
+  export let appMeta: AppMeta
   export let loginEvent: LoginEvent | null = null
-  export let loginStarting = false
   export let showSettings = false
   export let showProviderComposer = false
   export let showCodexDesktopExecutablePath = false
   export let showCallbackLoginDetails = true
   export let showDeviceLoginDetails = true
-  export let refreshingAllUsage = false
   export let loginActionBusy: boolean
   export let pollingOptions: readonly number[]
   export let settings: AppSettings
   export let updateState: AppUpdateState
-  export let bestAccount: AccountSummary | null = null
-  export let activeAccountId: string | undefined
-  export let startLogin: (method: LoginMethod) => void
-  export let importCurrent: () => void
-  export let importAccountsFile: () => void
-  export let exportAccountsFile: () => void
-  export let refreshAllRateLimits: () => void
-  export let activateBestAccount: () => void
-  export let toggleSettings: () => void
-  export let toggleProviderComposer: () => void
   export let createProvider: (input: CreateCustomProviderInput) => Promise<void>
   export let updatePollingInterval: (minutes: number) => void
   export let updateCheckForUpdatesOnStartup: (enabled: boolean) => void
@@ -129,6 +116,55 @@
       providerMutationBusy = false
     }
   }
+
+  const updateSummary = (): string => {
+    switch (updateState.status) {
+      case 'checking':
+        return copy.checkingUpdates
+      case 'available':
+        return copy.updateAvailableVersion(updateState.availableVersion)
+      case 'downloading':
+        return copy.updateDownloadProgress(updateState.downloadProgress)
+      case 'downloaded':
+        return copy.updateReady
+      case 'up-to-date':
+        return copy.updateUpToDate
+      case 'unsupported':
+        return copy.updatesUnsupported
+      case 'error':
+        return updateState.message || copy.updateFailed
+      default:
+        return ''
+    }
+  }
+
+  const headerUpdateActionLabel = (): string | null => {
+    switch (updateState.status) {
+      case 'available':
+        return updateState.delivery === 'external'
+          ? copy.openReleasePage(updateState.availableVersion)
+          : copy.downloadUpdate(updateState.availableVersion)
+      case 'downloaded':
+        return copy.restartToInstallUpdate
+      default:
+        return null
+    }
+  }
+
+  const headerUpdateAction = (): (() => void) | null => {
+    switch (updateState.status) {
+      case 'available':
+        return () => {
+          void downloadUpdate()
+        }
+      case 'downloaded':
+        return () => {
+          void installUpdate()
+        }
+      default:
+        return null
+    }
+  }
 </script>
 
 <section class={heroClass}>
@@ -149,95 +185,22 @@
       </div>
     </div>
 
-    <div
-      class="theme-toolbar inline-flex min-w-[140px] items-center gap-0.5 rounded-lg bg-black/[0.03] p-1"
-    >
-      <button
-        class={iconToolbarButton}
-        on:click={() => startLogin('browser')}
-        aria-label={copy.callbackLogin}
-        title={copy.callbackLogin}
+    <div class="flex min-w-[240px] flex-wrap items-center justify-end gap-2 text-sm text-faint">
+      <span
+        class="theme-version-pill rounded-full bg-black/[0.04] px-2 py-1 text-[11px] text-muted-strong"
       >
-        <span
-          class={`${loginStarting ? 'i-lucide-loader-circle animate-spin' : 'i-lucide-log-in'} h-4.5 w-4.5`}
-        ></span>
-      </button>
-      <button
-        class={iconToolbarButton}
-        on:click={() => startLogin('device')}
-        aria-label={copy.deviceLogin}
-        title={copy.deviceLogin}
-      >
-        <span class="i-lucide-key-round h-4.5 w-4.5"></span>
-      </button>
-      <button
-        class={iconToolbarButton}
-        on:click={importCurrent}
-        disabled={loginActionBusy}
-        aria-label={copy.importCurrent}
-        title={copy.importCurrent}
-      >
-        <span class="i-lucide-plus h-4.5 w-4.5"></span>
-      </button>
-      <button
-        class={iconToolbarButton}
-        on:click={importAccountsFile}
-        disabled={loginActionBusy}
-        aria-label={copy.importAccountsFile}
-        title={copy.importAccountsFile}
-      >
-        <span class="i-lucide-file-up h-4.5 w-4.5"></span>
-      </button>
-      <button
-        class={iconToolbarButton}
-        on:click={exportAccountsFile}
-        aria-label={copy.exportAccountsFile}
-        title={copy.exportAccountsFile}
-      >
-        <span class="i-lucide-file-down h-4.5 w-4.5"></span>
-      </button>
-      <button
-        class={iconToolbarButton}
-        on:click={refreshAllRateLimits}
-        disabled={loginActionBusy || refreshingAllUsage}
-        aria-label={copy.refreshAllQuota}
-        title={copy.refreshAllQuota}
-      >
-        <span
-          class={`${refreshingAllUsage ? 'i-lucide-loader-circle animate-spin' : 'i-lucide-refresh-cw'} h-4.5 w-4.5`}
-        ></span>
-      </button>
-      <button
-        class={iconToolbarButton}
-        on:click={activateBestAccount}
-        disabled={loginActionBusy || !bestAccount || bestAccount.id === activeAccountId}
-        aria-label={copy.switchBest}
-        title={bestAccount
-          ? bestAccount.id === activeAccountId
-            ? copy.alreadyBest
-            : copy.switchToAccount(accountEmail(bestAccount, copy))
-          : copy.noBestAccount}
-      >
-        <span class="i-lucide-sparkles h-4.5 w-4.5"></span>
-      </button>
-      <button
-        class={iconToolbarButton}
-        on:click={toggleProviderComposer}
-        aria-label={copy.createProvider}
-        title={copy.createProvider}
-      >
-        <span
-          class={`${showProviderComposer ? 'i-lucide-panel-top-close' : 'i-lucide-plug-zap'} h-4.5 w-4.5`}
-        ></span>
-      </button>
-      <button
-        class={iconToolbarButton}
-        on:click={toggleSettings}
-        aria-label={copy.settings}
-        title={copy.settings}
-      >
-        <span class="i-lucide-settings-2 h-4.5 w-4.5"></span>
-      </button>
+        v{appMeta.version}
+      </span>
+
+      {#if updateSummary()}
+        <span class="text-xs text-muted-strong" aria-live="polite">{updateSummary()}</span>
+      {/if}
+
+      {#if headerUpdateActionLabel() && headerUpdateAction()}
+        <button class={compactGhostButton} type="button" on:click={() => headerUpdateAction()?.()}>
+          {headerUpdateActionLabel()}
+        </button>
+      {/if}
     </div>
   </div>
 

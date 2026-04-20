@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { readAccountRateLimits } from './codex-app-server'
+import { readAccountRateLimits } from '../codex-app-server'
 
 describe('readAccountRateLimits', () => {
   const originalBaseUrl = process.env['ILOVECODEX_CHATGPT_BASE_URL']
@@ -134,8 +134,12 @@ describe('readAccountRateLimits', () => {
   })
 
   it('fails fast when the access token is missing', async () => {
-    await expect(readAccountRateLimits({ tokens: { account_id: 'acct_123' } }, { fetch: async () => new Response() }))
-      .rejects.toThrow('Missing access token required for rate-limit lookup.')
+    await expect(
+      readAccountRateLimits(
+        { tokens: { account_id: 'acct_123' } },
+        { fetch: async () => new Response() }
+      )
+    ).rejects.toThrow('Missing access token required for rate-limit lookup.')
   })
 
   it('wraps non-ok responses in AccountRateLimitLookupError', async () => {

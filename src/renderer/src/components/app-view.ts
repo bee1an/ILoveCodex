@@ -83,6 +83,10 @@ export const messages = {
     allTags: '全部',
     untagged: '未打标签',
     filterByTag: '按标签筛选',
+    filtersAndBulkActions: '筛选与批量操作',
+    showFiltersAndBulkActions: '展开筛选与批量操作',
+    hideFiltersAndBulkActions: '收起筛选与批量操作',
+    emptyFilterTools: '导入账号后再进行筛选或批量操作',
     tagsForAccount: '账号标签',
     addTag: '添加标签',
     removeTag: '移除标签',
@@ -244,6 +248,10 @@ export const messages = {
     allTags: 'All',
     untagged: 'Untagged',
     filterByTag: 'Filter by tag',
+    filtersAndBulkActions: 'Filters & bulk actions',
+    showFiltersAndBulkActions: 'Show filters and bulk actions',
+    hideFiltersAndBulkActions: 'Hide filters and bulk actions',
+    emptyFilterTools: 'Import accounts to unlock filters and bulk actions',
     tagsForAccount: 'Account tags',
     addTag: 'Add tag',
     removeTag: 'Remove tag',
@@ -438,9 +446,15 @@ export function usageErrorKind(message?: string): 'expired' | 'workspace' | 'err
 
   if (
     normalized.includes('invalid_grant') ||
-    normalized.includes('token refresh failed') ||
+    normalized.includes('refresh_token_expired') ||
+    normalized.includes('refresh_token_reused') ||
+    normalized.includes('refresh_token_invalidated') ||
+    normalized.includes('already used') ||
+    normalized.includes('revoked') ||
     normalized.includes('missing refresh token') ||
     normalized.includes('missing access token') ||
+    normalized.includes('token refresh failed (401)') ||
+    normalized.includes('token refresh failed (403)') ||
     normalized.includes('failed: 401') ||
     normalized.includes('failed: 403')
   ) {
@@ -474,10 +488,7 @@ function usageErrorDetail(
 export function accountUsageBadge(
   message: string | undefined,
   account: Pick<AccountSummary, 'id' | 'email' | 'name' | 'accountId'>,
-  copy: Pick<
-    LocalizedCopy,
-    'accountExpired' | 'accountExpiredHint' | 'accountUsageRefreshFailed'
-  >
+  copy: Pick<LocalizedCopy, 'accountExpired' | 'accountExpiredHint' | 'accountUsageRefreshFailed'>
 ): { kind: 'expired' | 'workspace' | 'error'; title: string; detail: string } | null {
   const kind = usageErrorKind(message)
 
@@ -504,6 +515,42 @@ export function accountUsageBadge(
 
 export function progressWidth(value?: number | null): string {
   return `${remainingPercent(value)}%`
+}
+
+function normalizeResetTimestamp(value?: number | null): number | null {
+  if (!value) {
+    return null
+  }
+
+  return value < 1_000_000_000_000 ? value * 1000 : value
+}
+
+export function weeklyResetTimeToneClass(value?: number | null, now = Date.now()): string {
+  const normalized = normalizeResetTimestamp(value)
+  if (!normalized) {
+    return 'text-muted-strong'
+  }
+
+  const diffMs = normalized - now
+  if (diffMs <= 0) {
+    return 'text-emerald-700'
+  }
+
+  const remainingDays = Math.ceil(diffMs / (24 * 60 * 60_000))
+
+  if (remainingDays <= 1) {
+    return 'text-emerald-700'
+  }
+
+  if (remainingDays <= 3) {
+    return 'text-sky-700'
+  }
+
+  if (remainingDays <= 5) {
+    return 'text-amber-700'
+  }
+
+  return 'text-red-700'
 }
 
 export function limitLabel(limit: AccountRateLimitEntry): string {

@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import brandMark from './assets/brand-mark.png'
   import AccountsPanel from './components/AccountsPanel.svelte'
-  import FooterBar from './components/FooterBar.svelte'
+  import AppSider from './components/AppSider.svelte'
   import HeroPanel from './components/HeroPanel.svelte'
   import TrayPanel from './components/TrayPanel.svelte'
   import {
@@ -562,6 +562,10 @@
     applySnapshot(await window.codexApp.openMainWindow())
   }
 
+  const openCodex = async (): Promise<void> => {
+    await runAction('codex:open', () => window.codexApp.openCodex())
+  }
+
   const downloadUpdate = async (): Promise<void> => {
     if (updateState.delivery === 'external') {
       openExternalLink(updateState.externalDownloadUrl ?? appMeta.githubUrl ?? undefined)
@@ -691,158 +695,167 @@
           snapshot.activeAccountId
         )}
         {openMainPanel}
+        {openCodex}
         {toggleStatusAccount}
         {updatePollingInterval}
       />
     {:else}
-      <HeroPanel
-        {brandMark}
-        {heroClass}
-        {compactGhostButton}
-        {iconToolbarButton}
-        copy={copyForLanguage()}
-        {loginEvent}
-        {loginStarting}
-        {showSettings}
-        {showProviderComposer}
-        {showCallbackLoginDetails}
-        {showDeviceLoginDetails}
-        {refreshingAllUsage}
-        loginActionBusy={loginActionBusy() || (!snapshot.accounts.length && refreshingAllUsage)}
-        {pollingOptions}
-        settings={snapshot.settings}
-        {updateState}
-        bestAccount={bestAccount()}
-        activeAccountId={snapshot.activeAccountId}
-        {startLogin}
-        importCurrent={() => {
-          closeExpandablePanels()
-          return runAction('import', () => window.codexApp.importCurrentAccount())
-        }}
-        importAccountsFile={() => {
-          closeExpandablePanels()
-          return runAction('import:file', () => window.codexApp.importAccountsFromFile())
-        }}
-        exportAccountsFile={() => {
-          closeExpandablePanels()
-          return runAction('export:file', () => window.codexApp.exportAccountsToFile())
-        }}
-        {refreshAllRateLimits}
-        activateBestAccount={() => {
-          closeExpandablePanels()
-          return activateBestAccount()
-        }}
-        {createProvider}
-        toggleSettings={() => {
-          const nextOpen = !showSettings
-          closeExpandablePanels(nextOpen ? 'settings' : undefined)
-          showSettings = nextOpen
-        }}
-        toggleProviderComposer={() => {
-          const nextOpen = !showProviderComposer
-          closeExpandablePanels(nextOpen ? 'provider' : undefined)
-          showProviderComposer = nextOpen
-        }}
-        {updatePollingInterval}
-        {updateCheckForUpdatesOnStartup}
-        {updateCodexDesktopExecutablePath}
-        showCodexDesktopExecutablePath={shouldShowCodexDesktopExecutablePath()}
-        {checkForUpdates}
-        {downloadUpdate}
-        {installUpdate}
-        {copyAuthUrl}
-        {copyDeviceCode}
-        {openExternalLink}
-      />
+      <div class="grid min-h-0 flex-1 items-start gap-4 grid-cols-[minmax(0,1fr)_112px]">
+        <div class="flex min-h-0 flex-col gap-4">
+          <HeroPanel
+            {brandMark}
+            {appMeta}
+            {heroClass}
+            {compactGhostButton}
+            copy={copyForLanguage()}
+            {loginEvent}
+            {showSettings}
+            {showProviderComposer}
+            {showCallbackLoginDetails}
+            {showDeviceLoginDetails}
+            loginActionBusy={loginActionBusy() || (!snapshot.accounts.length && refreshingAllUsage)}
+            {pollingOptions}
+            settings={snapshot.settings}
+            {updateState}
+            {createProvider}
+            {updatePollingInterval}
+            {updateCheckForUpdatesOnStartup}
+            {updateCodexDesktopExecutablePath}
+            showCodexDesktopExecutablePath={shouldShowCodexDesktopExecutablePath()}
+            {checkForUpdates}
+            {downloadUpdate}
+            {installUpdate}
+            {copyAuthUrl}
+            {copyDeviceCode}
+            {openExternalLink}
+          />
 
-      {#if pageError}
-        <section
-          class="theme-surface theme-error-panel rounded-[1rem] border border-danger/18 bg-white px-4 py-4 text-base text-danger"
-        >
-          <div class="grid gap-2">
-            <p>{pageError}</p>
-            {#if loginPortOccupant && hasLoginPortConflict()}
-              <div class="flex flex-wrap items-center gap-2 text-sm text-danger">
-                <span>
-                  {copyForLanguage().portOccupied(loginPortOccupant.command, loginPortOccupant.pid)}
-                </span>
-                <button
-                  class={compactGhostButton}
-                  on:click={killLoginPortOccupant}
-                  disabled={killingLoginPortOccupant}
-                >
-                  {copyForLanguage().killPortOccupant}
-                </button>
+          {#if pageError}
+            <section
+              class="theme-surface theme-error-panel rounded-[1rem] border border-danger/18 bg-white px-4 py-4 text-base text-danger"
+            >
+              <div class="grid gap-2">
+                <p>{pageError}</p>
+                {#if loginPortOccupant && hasLoginPortConflict()}
+                  <div class="flex flex-wrap items-center gap-2 text-sm text-danger">
+                    <span>
+                      {copyForLanguage().portOccupied(
+                        loginPortOccupant.command,
+                        loginPortOccupant.pid
+                      )}
+                    </span>
+                    <button
+                      class={compactGhostButton}
+                      on:click={killLoginPortOccupant}
+                      disabled={killingLoginPortOccupant}
+                    >
+                      {copyForLanguage().killPortOccupant}
+                    </button>
+                  </div>
+                {/if}
               </div>
-            {/if}
-          </div>
-        </section>
-      {/if}
+            </section>
+          {/if}
 
-      <AccountsPanel
-        {panelClass}
-        {primaryActionButton}
-        {compactGhostButton}
-        {iconRowButton}
-        copy={copyForLanguage()}
-        language={snapshot.settings.language}
-        accounts={snapshot.accounts}
-        providers={snapshot.providers}
-        tags={snapshot.tags}
-        activeAccountId={snapshot.activeAccountId}
-        {usageByAccountId}
-        {usageLoadingByAccountId}
-        {usageErrorByAccountId}
-        loginActionBusy={loginActionBusy()}
-        {loginStarting}
-        openAccountInCodex={(accountId) =>
-          runAccountAction(`open:${accountId}`, () =>
-            window.codexApp.openAccountInCodex(accountId)
-          )}
-        openAccountInIsolatedCodex={(accountId) =>
-          runAccountAction(`open-isolated:${accountId}`, () =>
-            window.codexApp.openAccountInIsolatedCodex(accountId)
-          )}
-        openingAccountId={accountActionKey.startsWith('open:')
-          ? accountActionKey.slice('open:'.length)
-          : ''}
-        openingIsolatedAccountId={accountActionKey.startsWith('open-isolated:')
-          ? accountActionKey.slice('open-isolated:'.length)
-          : ''}
-        openingProviderId={accountActionKey.startsWith('provider:open:')
-          ? accountActionKey.slice('provider:open:'.length)
-          : ''}
-        {getProvider}
-        {reorderProviders}
-        {updateProvider}
-        {removeProvider}
-        {openProviderInCodex}
-        {reorderAccounts}
-        {createTag}
-        {updateTag}
-        {deleteTag}
-        {updateAccountTags}
-        refreshAccountUsage={(account) => readRateLimits(account, { force: true })}
-        {removeAccount}
-        {removeAccounts}
-        {exportSelectedAccounts}
-        {startLogin}
-        importCurrent={() => runAction('import', () => window.codexApp.importCurrentAccount())}
-      />
-      <FooterBar
-        {appMeta}
-        {updateState}
-        language={snapshot.settings.language}
-        theme={snapshot.settings.theme}
-        copy={copyForLanguage()}
-        {compactGhostButton}
-        {iconToolbarButton}
-        {updateLanguage}
-        {updateTheme}
-        {openExternalLink}
-        {downloadUpdate}
-        {installUpdate}
-      />
+          <AccountsPanel
+            {panelClass}
+            {primaryActionButton}
+            {compactGhostButton}
+            {iconRowButton}
+            copy={copyForLanguage()}
+            language={snapshot.settings.language}
+            accounts={snapshot.accounts}
+            providers={snapshot.providers}
+            tags={snapshot.tags}
+            activeAccountId={snapshot.activeAccountId}
+            {usageByAccountId}
+            {usageLoadingByAccountId}
+            {usageErrorByAccountId}
+            loginActionBusy={loginActionBusy()}
+            {loginStarting}
+            openAccountInCodex={(accountId) =>
+              runAccountAction(`open:${accountId}`, () =>
+                window.codexApp.openAccountInCodex(accountId)
+              )}
+            openAccountInIsolatedCodex={(accountId) =>
+              runAccountAction(`open-isolated:${accountId}`, () =>
+                window.codexApp.openAccountInIsolatedCodex(accountId)
+              )}
+            openingAccountId={accountActionKey.startsWith('open:')
+              ? accountActionKey.slice('open:'.length)
+              : ''}
+            openingIsolatedAccountId={accountActionKey.startsWith('open-isolated:')
+              ? accountActionKey.slice('open-isolated:'.length)
+              : ''}
+            openingProviderId={accountActionKey.startsWith('provider:open:')
+              ? accountActionKey.slice('provider:open:'.length)
+              : ''}
+            {getProvider}
+            {reorderProviders}
+            {updateProvider}
+            {removeProvider}
+            {openProviderInCodex}
+            {reorderAccounts}
+            {createTag}
+            {updateTag}
+            {deleteTag}
+            {updateAccountTags}
+            refreshAccountUsage={(account) => readRateLimits(account, { force: true })}
+            {removeAccount}
+            {removeAccounts}
+            {exportSelectedAccounts}
+            {startLogin}
+            importCurrent={() => runAction('import', () => window.codexApp.importCurrentAccount())}
+          />
+        </div>
+
+        <div class="self-start">
+          <AppSider
+            copy={copyForLanguage()}
+            {appMeta}
+            language={snapshot.settings.language}
+            theme={snapshot.settings.theme}
+            {iconToolbarButton}
+            {loginStarting}
+            loginActionBusy={loginActionBusy() || (!snapshot.accounts.length && refreshingAllUsage)}
+            {refreshingAllUsage}
+            {showProviderComposer}
+            bestAccount={bestAccount()}
+            activeAccountId={snapshot.activeAccountId}
+            {startLogin}
+            importCurrent={() => {
+              closeExpandablePanels()
+              return runAction('import', () => window.codexApp.importCurrentAccount())
+            }}
+            importAccountsFile={() => {
+              closeExpandablePanels()
+              return runAction('import:file', () => window.codexApp.importAccountsFromFile())
+            }}
+            exportAccountsFile={() => {
+              closeExpandablePanels()
+              return runAction('export:file', () => window.codexApp.exportAccountsToFile())
+            }}
+            {refreshAllRateLimits}
+            activateBestAccount={() => {
+              closeExpandablePanels()
+              return activateBestAccount()
+            }}
+            toggleSettings={() => {
+              const nextOpen = !showSettings
+              closeExpandablePanels(nextOpen ? 'settings' : undefined)
+              showSettings = nextOpen
+            }}
+            toggleProviderComposer={() => {
+              const nextOpen = !showProviderComposer
+              closeExpandablePanels(nextOpen ? 'provider' : undefined)
+              showProviderComposer = nextOpen
+            }}
+            {updateLanguage}
+            {updateTheme}
+            {openExternalLink}
+          />
+        </div>
+      </div>
     {/if}
   </div>
 </div>

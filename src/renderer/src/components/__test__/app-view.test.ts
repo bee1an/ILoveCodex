@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { accountUsageBadge, extraLimits, messages } from './app-view'
+import { accountUsageBadge, extraLimits, messages, weeklyResetTimeToneClass } from '../app-view'
 
 describe('app view account usage badge', () => {
   it('shows the underlying refresh error detail instead of only the generic label', () => {
@@ -36,6 +36,37 @@ describe('app view account usage badge', () => {
       detail: 'service temporarily unavailable',
       title: 'service temporarily unavailable'
     })
+  })
+
+  it('does not classify transient refresh failures as expired sessions', () => {
+    const badge = accountUsageBadge(
+      'OpenAI token refresh failed (500): service temporarily unavailable',
+      {
+        id: 'acct-2',
+        email: 'user@example.com'
+      },
+      messages['zh-CN']
+    )
+
+    expect(badge).toEqual({
+      kind: 'error',
+      detail: 'OpenAI token refresh failed (500): service temporarily unavailable',
+      title: 'OpenAI token refresh failed (500): service temporarily unavailable'
+    })
+  })
+
+  it('classifies refresh token reuse as an expired session', () => {
+    const badge = accountUsageBadge(
+      'OpenAI token refresh failed (400): refresh_token_reused',
+      {
+        id: 'acct-2',
+        email: 'user@example.com'
+      },
+      messages['en']
+    )
+
+    expect(badge?.kind).toBe('expired')
+    expect(badge?.detail).toBe('OpenAI token refresh failed (400): refresh_token_reused')
   })
 
   it('classifies deactivated workspace as a dedicated workspace error', () => {
@@ -108,5 +139,15 @@ describe('app view account usage badge', () => {
         'acct-5'
       ).map((limit) => limit.limitId)
     ).toEqual(['gpt-4.1'])
+  })
+
+  it('uses day-based colors for weekly reset times', () => {
+    const now = Date.parse('2026-04-20T00:00:00.000Z')
+
+    expect(weeklyResetTimeToneClass(undefined, now)).toBe('text-muted-strong')
+    expect(weeklyResetTimeToneClass(now + 6 * 60 * 60_000, now)).toBe('text-emerald-700')
+    expect(weeklyResetTimeToneClass(now + 2 * 24 * 60 * 60_000, now)).toBe('text-sky-700')
+    expect(weeklyResetTimeToneClass(now + 4 * 24 * 60 * 60_000, now)).toBe('text-amber-700')
+    expect(weeklyResetTimeToneClass(now + 6 * 24 * 60 * 60_000, now)).toBe('text-red-700')
   })
 })

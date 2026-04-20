@@ -4,11 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import {
-  buildCliShimContent,
-  installCliShim,
-  resolveCliShimCandidates
-} from './cli-shim'
+import { buildCliShimContent, installCliShim, resolveCliShimCandidates } from '../cli-shim'
 
 describe('cli shim helpers', () => {
   let tempDir: string | null = null
@@ -21,8 +17,9 @@ describe('cli shim helpers', () => {
   })
 
   it('builds a posix shim with the managed marker', () => {
-    expect(buildCliShimContent('/Applications/Ilovecodex.app/Contents/MacOS/Ilovecodex', 'darwin'))
-      .toContain('Managed by Ilovecodex CLI')
+    expect(
+      buildCliShimContent('/Applications/Ilovecodex.app/Contents/MacOS/Ilovecodex', 'darwin')
+    ).toContain('Managed by Ilovecodex CLI')
   })
 
   it('prefers PATH directories for shim installation', () => {
@@ -59,7 +56,9 @@ describe('cli shim helpers', () => {
     expect(result.status).toBe('installed')
     expect(result.onPath).toBe(true)
     expect(result.shimPath).toBe(join(binDir, 'ilc'))
-    await expect(readFile(join(binDir, 'ilc'), 'utf8')).resolves.toContain(`exec "${appPath}" --cli "$@"`)
+    await expect(readFile(join(binDir, 'ilc'), 'utf8')).resolves.toContain(
+      `exec "${appPath}" --cli "$@"`
+    )
   })
 
   it('does not overwrite an unrelated ilc shim on PATH', async () => {

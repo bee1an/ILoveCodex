@@ -2,8 +2,8 @@ import { EventEmitter } from 'node:events'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createAppUpdaterService, type AppUpdaterTestDouble } from './app-updater'
-import type { AppSettings } from '../shared/codex'
+import { createAppUpdaterService, type AppUpdaterTestDouble } from '../app-updater'
+import type { AppSettings } from '../../shared/codex'
 
 class FakeUpdater extends EventEmitter implements AppUpdaterTestDouble {
   autoDownload = true
@@ -57,14 +57,15 @@ describe('app updater service', () => {
   })
 
   it('runs the initial and interval silent checks on macOS via GitHub releases when enabled', async () => {
-    const fetchImpl = vi.fn(async () =>
-      new Response(
-        JSON.stringify({
-          tag_name: 'v0.2.2',
-          html_url: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.2'
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            tag_name: 'v0.2.2',
+            html_url: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.2'
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
     ) as typeof fetch
     const service = createAppUpdaterService({
       currentVersion: '0.2.1',
@@ -89,11 +90,12 @@ describe('app updater service', () => {
   })
 
   it('stops scheduled checks when the startup setting is disabled', async () => {
-    const fetchImpl = vi.fn(async () =>
-      new Response(JSON.stringify({ tag_name: 'v0.2.2' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      })
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ tag_name: 'v0.2.2' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
     ) as typeof fetch
     const service = createAppUpdaterService({
       currentVersion: '0.2.1',
@@ -152,14 +154,15 @@ describe('app updater service', () => {
   })
 
   it('shows up-to-date briefly for manual GitHub checks without an update', async () => {
-    const fetchImpl = vi.fn(async () =>
-      new Response(
-        JSON.stringify({
-          tag_name: 'v0.2.1',
-          html_url: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.1'
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            tag_name: 'v0.2.1',
+            html_url: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.1'
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
     ) as typeof fetch
     const service = createAppUpdaterService({
       currentVersion: '0.2.1',
@@ -178,14 +181,15 @@ describe('app updater service', () => {
   })
 
   it('returns an external download URL for macOS release checks', async () => {
-    const fetchImpl = vi.fn(async () =>
-      new Response(
-        JSON.stringify({
-          tag_name: 'v0.2.5',
-          html_url: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.5'
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            tag_name: 'v0.2.5',
+            html_url: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.5'
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
     ) as typeof fetch
     const service = createAppUpdaterService({
       currentVersion: '0.2.4',

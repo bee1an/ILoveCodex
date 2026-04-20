@@ -21,6 +21,7 @@ const codexApp = {
   updateSettings: (nextSettings: Partial<AppSettings>) =>
     ipcRenderer.invoke('codex:update-settings', nextSettings),
   openMainWindow: () => ipcRenderer.invoke('codex:open-main-window'),
+  openCodex: () => ipcRenderer.invoke('codex:open-codex'),
   importCurrentAccount: () => ipcRenderer.invoke('codex:import-current-account'),
   importAccountsFromFile: () => ipcRenderer.invoke('codex:import-accounts-from-file'),
   exportAccountsToFile: () => ipcRenderer.invoke('codex:export-accounts-to-file'),

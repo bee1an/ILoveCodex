@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createAuthRefreshController } from './auth-poller'
-import type { AccountSummary, AppSnapshot } from '../shared/codex'
+import { createAuthRefreshController } from '../auth-poller'
+import type { AccountSummary, AppSnapshot } from '../../shared/codex'
 
 function createAccount(id: string, overrides: Partial<AccountSummary> = {}): AccountSummary {
   return {

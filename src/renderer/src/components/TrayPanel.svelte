@@ -17,7 +17,8 @@
   export let compactGhostButton: string
   export let pollingOptions: readonly number[]
   export let statusAccounts: AccountSummary[] = []
-  export let openMainPanel: () => void
+  export let openMainPanel: () => void | Promise<void>
+  export let openCodex: () => void | Promise<void>
   export let toggleStatusAccount: (accountId: string) => void
   export let updatePollingInterval: (minutes: number) => void
 </script>
@@ -37,7 +38,10 @@
         <p class="text-xs text-faint">{copy.statusBarAccountCount(statusAccounts.length)}</p>
       </div>
     </div>
-    <button class={compactGhostButton} on:click={openMainPanel}>{copy.openMainPanel}</button>
+    <div class="flex flex-none items-center gap-2">
+      <button class={compactGhostButton} on:click={openCodex}>{copy.openCodex}</button>
+      <button class={compactGhostButton} on:click={openMainPanel}>{copy.openMainPanel}</button>
+    </div>
   </div>
 
   {#if pageError}

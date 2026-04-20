@@ -23,6 +23,8 @@ import {
 } from './codex-account-template'
 import {
   launchCodexDesktop,
+  revealCodexDesktop,
+  resolveAnyCodexDesktopPid,
   resolveCodexLaunchCommand,
   resolveManagedCodexPid,
   resolveWindowsCodexDesktopExecutable,
@@ -58,6 +60,7 @@ import type { CodexPlatformAdapter } from '../shared/codex-platform'
 import { decodeJwtPayload } from '../shared/openai-auth'
 
 const DEFAULT_CODEX_INSTANCE_ID = '__default__'
+const CODEX_TOKEN_REFRESH_INTERVAL_MS = 8 * 24 * 60 * 60_000
 const BACKGROUND_AUTH_REFRESH_SKEW_MS = 5 * 60_000
 
 function accessTokenExpiresSoon(token?: string, skewMs = 60_000): boolean {
@@ -71,6 +74,61 @@ function accessTokenExpiresSoon(token?: string, skewMs = 60_000): boolean {
   }
 
   return payload.exp * 1000 <= Date.now() + skewMs
+}
+
+function lastRefreshIsStale(
+  lastRefresh?: string,
+  intervalMs = CODEX_TOKEN_REFRESH_INTERVAL_MS
+): boolean {
+  if (!lastRefresh) {
+    return false
+  }
+
+  const refreshedAt = Date.parse(lastRefresh)
+  if (!Number.isFinite(refreshedAt)) {
+    return true
+  }
+
+  return refreshedAt <= Date.now() - intervalMs
+}
+
+function authRefreshReason(
+  auth: CodexAuthPayload,
+  skewMs = 60_000
+): 'expires-soon' | 'stale' | null {
+  if (!auth.tokens?.refresh_token) {
+    return null
+  }
+
+  if (accessTokenExpiresSoon(auth.tokens.access_token, skewMs)) {
+    return 'expires-soon'
+  }
+
+  if (lastRefreshIsStale(auth.last_refresh)) {
+    return 'stale'
+  }
+
+  return null
+}
+
+function comparableAuthPayload(auth: CodexAuthPayload): unknown {
+  return {
+    auth_mode: auth.auth_mode,
+    OPENAI_API_KEY: auth.OPENAI_API_KEY,
+    last_refresh: auth.last_refresh,
+    tokens: {
+      access_token: auth.tokens?.access_token,
+      refresh_token: auth.tokens?.refresh_token,
+      id_token: auth.tokens?.id_token,
+      account_id: auth.tokens?.account_id
+    }
+  }
+}
+
+function authPayloadsEqualForRefresh(left: CodexAuthPayload, right: CodexAuthPayload): boolean {
+  return (
+    JSON.stringify(comparableAuthPayload(left)) === JSON.stringify(comparableAuthPayload(right))
+  )
 }
 
 function accountErrorLabel(account: AccountSummary): string {
@@ -128,8 +186,12 @@ function shouldClearStoredUsage(error: unknown): boolean {
 
   return (
     message.includes('invalid_grant') ||
+    message.includes('refresh_token_expired') ||
+    message.includes('refresh_token_reused') ||
+    message.includes('refresh_token_invalidated') ||
     message.includes('expired') ||
     message.includes('revoked') ||
+    message.includes('already used') ||
     message.includes('invalid token')
   )
 }
@@ -245,6 +307,7 @@ export interface CodexServices {
     killPortOccupant: typeof killOpenAiCallbackPortOccupant
   }
   codex: {
+    show(workspacePath?: string): Promise<AppSnapshot>
     open(accountId?: string, workspacePath?: string): Promise<AppSnapshot>
     openIsolated(accountId: string, workspacePath?: string): Promise<AppSnapshot>
     instances: {
@@ -268,6 +331,12 @@ export interface CreateCodexServicesOptions {
 
 export { resolveWindowsCodexDesktopExecutable }
 
+interface StoredAuthRefreshResult {
+  accountId: string
+  auth: CodexAuthPayload
+  refreshed: boolean
+}
+
 export function createCodexServices(options: CreateCodexServicesOptions): CodexServices {
   const store = new CodexAccountStore(options.userDataPath, options.platform)
   const instanceStore = new CodexInstanceStore(options.userDataPath)
@@ -277,6 +346,7 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
     options.emitLoginEvent ?? (() => undefined),
     options.platform
   )
+  const authRefreshTasksByAccountId = new Map<string, Promise<StoredAuthRefreshResult>>()
 
   async function persistRefreshedAuth(
     accountId: string,
@@ -290,27 +360,114 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
     }
   }
 
+  async function refreshStoredAuthGuarded(
+    accountId: string,
+    expectedAuth: CodexAuthPayload
+  ): Promise<StoredAuthRefreshResult> {
+    const existingTask = authRefreshTasksByAccountId.get(accountId)
+    if (existingTask) {
+      return existingTask
+    }
+
+    const task = (async (): Promise<StoredAuthRefreshResult> => {
+      const currentAuth = await store.importCurrentAuthPayloadForAccount(accountId)
+      if (currentAuth?.changed) {
+        return {
+          accountId: currentAuth.account.id,
+          auth: currentAuth.auth,
+          refreshed: false
+        }
+      }
+
+      const latestAuth = await store.getStoredAuthPayload(accountId)
+      if (!authPayloadsEqualForRefresh(latestAuth, expectedAuth)) {
+        return {
+          accountId,
+          auth: latestAuth,
+          refreshed: false
+        }
+      }
+
+      const refreshedAuth = await refreshCodexAuthPayload(latestAuth, options.platform)
+      const persisted = await persistRefreshedAuth(accountId, refreshedAuth)
+      return {
+        ...persisted,
+        refreshed: true
+      }
+    })()
+
+    authRefreshTasksByAccountId.set(accountId, task)
+    try {
+      return await task
+    } finally {
+      if (authRefreshTasksByAccountId.get(accountId) === task) {
+        authRefreshTasksByAccountId.delete(accountId)
+      }
+    }
+  }
+
+  async function refreshAuthForUse(
+    accountId: string,
+    auth: CodexAuthPayload,
+    options?: { skewMs?: number; allowStaleFallback?: boolean }
+  ): Promise<StoredAuthRefreshResult> {
+    const skewMs = options?.skewMs ?? 60_000
+    const reason = authRefreshReason(auth, skewMs)
+    if (!reason) {
+      return {
+        accountId,
+        auth,
+        refreshed: false
+      }
+    }
+
+    try {
+      return await refreshStoredAuthGuarded(accountId, auth)
+    } catch (error) {
+      if (
+        options?.allowStaleFallback &&
+        reason === 'stale' &&
+        !accessTokenExpiresSoon(auth.tokens?.access_token, skewMs)
+      ) {
+        return {
+          accountId,
+          auth,
+          refreshed: false
+        }
+      }
+
+      throw error
+    }
+  }
+
   async function readUsageForAuth(
     accountId: string,
     account: AccountSummary,
     auth: CodexAuthPayload
   ): Promise<AccountRateLimits> {
     let targetAccountId = accountId
+    let targetAuth = auth
 
     try {
+      const prepared = await refreshAuthForUse(targetAccountId, targetAuth, {
+        allowStaleFallback: true
+      })
+      targetAccountId = prepared.accountId
+      targetAuth = prepared.auth
+
       let rateLimits: AccountRateLimits
 
       try {
-        rateLimits = await readAccountRateLimits(auth, options.platform)
+        rateLimits = await readAccountRateLimits(targetAuth, options.platform)
       } catch (error) {
-        if (!shouldRefreshStoredAuth(error, auth.tokens?.refresh_token)) {
+        if (!shouldRefreshStoredAuth(error, targetAuth.tokens?.refresh_token)) {
           throw error
         }
 
-        const refreshedAuth = await refreshCodexAuthPayload(auth, options.platform)
-        const persisted = await persistRefreshedAuth(targetAccountId, refreshedAuth)
-        targetAccountId = persisted.accountId
-        rateLimits = await readAccountRateLimits(persisted.auth, options.platform)
+        const refreshed = await refreshStoredAuthGuarded(targetAccountId, targetAuth)
+        targetAccountId = refreshed.accountId
+        targetAuth = refreshed.auth
+        rateLimits = await readAccountRateLimits(targetAuth, options.platform)
       }
 
       await Promise.all([
@@ -332,34 +489,26 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
   async function prepareLaunchAuthPayload(accountId: string): Promise<CodexAuthPayload> {
     const storedAuth = await store.getStoredAuthPayload(accountId)
 
-    if (
-      !accessTokenExpiresSoon(storedAuth.tokens?.access_token) ||
-      !storedAuth.tokens?.refresh_token
-    ) {
-      return storedAuth
-    }
-
-    const refreshed = await refreshCodexAuthPayload(storedAuth, options.platform)
-    return (await persistRefreshedAuth(accountId, refreshed)).auth
+    return (
+      await refreshAuthForUse(accountId, storedAuth, {
+        allowStaleFallback: true
+      })
+    ).auth
   }
 
   async function refreshExpiringAccountSession(accountId: string): Promise<boolean> {
     const storedAuth = await store.getStoredAuthPayload(accountId)
 
-    if (
-      !storedAuth.tokens?.refresh_token ||
-      !accessTokenExpiresSoon(storedAuth.tokens?.access_token, BACKGROUND_AUTH_REFRESH_SKEW_MS)
-    ) {
+    if (!authRefreshReason(storedAuth, BACKGROUND_AUTH_REFRESH_SKEW_MS)) {
       return false
     }
 
     try {
-      const refreshed = await refreshCodexAuthPayload(storedAuth, options.platform)
-      await Promise.all([
-        persistRefreshedAuth(accountId, refreshed),
-        store.clearAccountUsageError(accountId)
-      ])
-      return true
+      const refreshed = await refreshStoredAuthGuarded(accountId, storedAuth)
+      if (refreshed.refreshed) {
+        await store.clearAccountUsageError(refreshed.accountId)
+      }
+      return refreshed.refreshed
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Failed to refresh account session.'
       await store.saveAccountUsageError(accountId, detail)
@@ -491,6 +640,7 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
     const targetAccountId = accountId ?? defaultInstance.bindAccountId
 
     if (targetAccountId) {
+      await prepareLaunchAuthPayload(targetAccountId)
       await store.activateAccount(targetAccountId)
     }
 
@@ -498,6 +648,60 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
     const runningPid = await resolveManagedCodexPid(defaultCodexHome, defaultInstance.lastPid)
     if (runningPid) {
       await stopCodexProcess(runningPid)
+    }
+
+    const pid = await launchCodexDesktop({
+      workspacePath,
+      codexHome: defaultCodexHome,
+      extraArgs: defaultInstance.extraArgs,
+      preferAppBundle: false,
+      requireDesktopExecutable: false,
+      desktopExecutablePath: await getDesktopExecutablePathOverride()
+    })
+
+    const updated = await instanceStore.updateDefaultInstance({
+      lastPid: pid,
+      touchLaunch: true
+    })
+
+    return toDefaultInstanceSummary(updated)
+  }
+
+  async function revealRunningCodex(): Promise<void> {
+    await revealCodexDesktop({
+      desktopExecutablePath: await getDesktopExecutablePathOverride()
+    })
+  }
+
+  async function showDefaultCodex(workspacePath: string): Promise<CodexInstanceSummary> {
+    const defaultInstance = await instanceStore.getDefaultInstance()
+    const { defaultCodexHome } = instanceStore.getDefaults()
+
+    const defaultRunningPid = await resolveManagedCodexPid(
+      defaultCodexHome,
+      defaultInstance.lastPid
+    )
+    if (defaultRunningPid) {
+      await revealRunningCodex()
+      return toDefaultInstanceSummary(defaultInstance)
+    }
+
+    for (const instance of await instanceStore.list()) {
+      if (resolve(instance.codexHome) === resolve(defaultCodexHome)) {
+        continue
+      }
+
+      const runningPid = await resolveManagedCodexPid(instance.codexHome, instance.lastPid)
+      if (runningPid) {
+        await revealRunningCodex()
+        return toDefaultInstanceSummary(defaultInstance)
+      }
+    }
+
+    const anyRunningPid = await resolveAnyCodexDesktopPid()
+    if (anyRunningPid) {
+      await revealRunningCodex()
+      return toDefaultInstanceSummary(defaultInstance)
     }
 
     const pid = await launchCodexDesktop({
@@ -645,20 +849,11 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
 
       if (response.status === 401 || response.status === 403) {
         checks.push(
-          makeHealthCheck(
-            'authentication',
-            'fail',
-            'Provider rejected the API key.',
-            errorDetail
-          )
+          makeHealthCheck('authentication', 'fail', 'Provider rejected the API key.', errorDetail)
         )
       } else {
         checks.push(
-          makeHealthCheck(
-            'authentication',
-            'pass',
-            'Provider accepted the authentication request.'
-          )
+          makeHealthCheck('authentication', 'pass', 'Provider accepted the authentication request.')
         )
       }
 
@@ -1049,6 +1244,10 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
       killPortOccupant: killOpenAiCallbackPortOccupant
     },
     codex: {
+      show: async (workspacePath = options.defaultWorkspacePath) => {
+        await showDefaultCodex(workspacePath)
+        return getSnapshot()
+      },
       open: async (accountId, workspacePath = options.defaultWorkspacePath) => {
         const resolvedAccountId = accountId ? await resolveAccountIdOrThrow(accountId) : undefined
         await startDefaultInstance(workspacePath, resolvedAccountId)

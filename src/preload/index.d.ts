@@ -20,6 +20,7 @@ interface CodexDesktopApi {
   getUpdateState: () => Promise<AppUpdateState>
   updateSettings: (nextSettings: Partial<AppSettings>) => Promise<AppSnapshot>
   openMainWindow: () => Promise<AppSnapshot>
+  openCodex: () => Promise<AppSnapshot>
   importCurrentAccount: () => Promise<AppSnapshot>
   importAccountsFromFile: () => Promise<AppSnapshot>
   exportAccountsToFile: () => Promise<AppSnapshot>

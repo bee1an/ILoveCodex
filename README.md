@@ -57,6 +57,7 @@ ilc login browser
 ilc login device
 ilc login port status
 ilc login port kill
+ilc codex show
 ilc codex open [account-id]
 ilc codex open-isolated <account-id>
 ilc doctor

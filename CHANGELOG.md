@@ -2,14 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.3.2 - 2026-03-27
+## 0.3.2 - 2026-04-20
 
-This patch release sharpens desktop usage diagnostics and packages the upstream API reference for external tooling.
+This patch release expands day-to-day Codex session management with steadier auth refresh, quicker launch actions, and a cleaner desktop workspace.
 
-- Fixed desktop account status errors so usage failures show the upstream detail directly, including a dedicated visual treatment for deactivated workspaces.
-- Improved ChatGPT usage parsing to capture code review limits and approximate local and cloud message counts from live successful responses.
-- Added an importable Postman collection for the upstream OpenAI and ChatGPT endpoints used by Ilovecodex, including real success and `deactivated_workspace` response samples.
-- Hardened usage error extraction so nested JSON detail codes surface cleanly instead of raw HTTP failure strings when upstream requests fail.
+- Improved saved-account auth refresh to follow Codex more closely, including guarded refresh handling, stale-session recovery, and better sync with the active local auth state.
+- Added direct "open Codex" actions across the desktop app, tray flow, and CLI so saved accounts or providers can be opened quickly without forcing an account switch.
+- Added CLI instance-management and diagnostics improvements so isolated Codex environments are easier to inspect and operate from the command line.
+- Refined desktop quota diagnostics and reset-time presentation so five-hour and weekly limits are easier to read and refresh from the main account view.
+- Reworked the main desktop layout by moving utility controls into a dedicated side rail, simplifying bulk account tools, and improving hover targets and spacing.
+- Reorganized automated tests into colocated `__test__` directories and kept the desktop and CLI documentation aligned with the updated workflows.
 
 ## 0.3.1 - 2026-03-25
 

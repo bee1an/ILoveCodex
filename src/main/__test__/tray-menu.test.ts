@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { buildTrayUpdateMenuItem, buildTrayUsageMenuItems, resolveTrayAccounts } from './tray-menu'
+import { buildTrayUpdateMenuItem, buildTrayUsageMenuItems, resolveTrayAccounts } from '../tray-menu'
 import type {
   AccountRateLimits,
   AccountSummary,
   AppSnapshot,
   AppUpdateState
-} from '../shared/codex'
+} from '../../shared/codex'
 
 function createAccount(id: string, overrides: Partial<AccountSummary> = {}): AccountSummary {
   return {
