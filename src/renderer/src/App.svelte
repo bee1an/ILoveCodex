@@ -7,6 +7,7 @@
   import TrayPanel from './components/TrayPanel.svelte'
   import {
     accountLabel,
+    loginTone,
     messages,
     pollingOptions,
     statusBarAccounts,
@@ -204,6 +205,53 @@
     const nextState = { ...usageErrorByAccountId }
     delete nextState[accountId]
     usageErrorByAccountId = nextState
+  }
+
+  const inlineUpdateSummary = (): string => {
+    switch (updateState.status) {
+      case 'checking':
+        return copyForLanguage().checkingUpdates
+      case 'available':
+        return copyForLanguage().updateAvailableVersion(updateState.availableVersion)
+      case 'downloading':
+        return copyForLanguage().updateDownloadProgress(updateState.downloadProgress)
+      case 'downloaded':
+        return copyForLanguage().updateReady
+      case 'up-to-date':
+        return copyForLanguage().updateUpToDate
+      case 'unsupported':
+        return copyForLanguage().updatesUnsupported
+      case 'error':
+        return updateState.message || copyForLanguage().updateFailed
+      default:
+        return ''
+    }
+  }
+
+  const inlineUpdateActionLabel = (): string | null => {
+    switch (updateState.status) {
+      case 'available':
+        return updateState.delivery === 'external'
+          ? copyForLanguage().openReleasePage(updateState.availableVersion)
+          : copyForLanguage().downloadUpdate(updateState.availableVersion)
+      case 'downloaded':
+        return copyForLanguage().restartToInstallUpdate
+      default:
+        return null
+    }
+  }
+
+  const runInlineUpdateAction = (): void => {
+    switch (updateState.status) {
+      case 'available':
+        void downloadUpdate()
+        return
+      case 'downloaded':
+        void installUpdate()
+        return
+      default:
+        return
+    }
   }
 
   const clearUsageData = (accountId: string): void => {
@@ -700,11 +748,9 @@
         {updatePollingInterval}
       />
     {:else}
-      <div class="grid min-h-0 flex-1 items-start gap-4 grid-cols-[minmax(0,1fr)_112px]">
+      <div class="grid min-h-0 flex-1 items-stretch gap-4 grid-cols-[minmax(0,1fr)_72px]">
         <div class="flex min-h-0 flex-col gap-4">
           <HeroPanel
-            {brandMark}
-            {appMeta}
             {heroClass}
             {compactGhostButton}
             copy={copyForLanguage()}
@@ -763,6 +809,14 @@
             {compactGhostButton}
             {iconRowButton}
             copy={copyForLanguage()}
+            workspaceVersion={appMeta.version}
+            workspaceStatusText={loginEvent?.message ?? ''}
+            workspaceStatusToneClass={loginEvent
+              ? loginTone(loginEvent.phase)
+              : 'text-muted-strong'}
+            updateSummary={inlineUpdateSummary()}
+            updateActionLabel={inlineUpdateActionLabel()}
+            runUpdateAction={runInlineUpdateAction}
             language={snapshot.settings.language}
             accounts={snapshot.accounts}
             providers={snapshot.providers}
@@ -809,7 +863,7 @@
           />
         </div>
 
-        <div class="self-start">
+        <div class="sticky top-0 self-start">
           <AppSider
             copy={copyForLanguage()}
             {appMeta}

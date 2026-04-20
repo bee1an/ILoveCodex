@@ -34,6 +34,12 @@
   export let compactGhostButton: string
   export let iconRowButton: string
   export let copy: LocalizedCopy
+  export let workspaceVersion = '--'
+  export let workspaceStatusText = ''
+  export let workspaceStatusToneClass = 'text-muted-strong'
+  export let updateSummary = ''
+  export let updateActionLabel: string | null = null
+  export let runUpdateAction: () => void = () => {}
   export let language: AppLanguage
   export let accounts: AccountSummary[] = []
   export let providers: CustomProviderSummary[] = []
@@ -535,68 +541,101 @@
 
 <section class={`${panelClass} flex min-h-0 flex-1 flex-col gap-4 overflow-hidden`}>
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <div class="grid gap-0.5">
-      <div class="text-[10px] font-medium uppercase tracking-[0.08em] text-faint">
-        {currentView === 'tags'
-          ? copy.tagManager
-          : currentView === 'providers'
-            ? copy.providerList
-            : copy.accountList}
-      </div>
-      <div class="text-sm font-medium text-ink">
-        {currentView === 'tags'
-          ? `${tags.length} ${copy.tagManager}`
-          : currentView === 'providers'
-            ? copy.providerCount(providers.length)
-            : copy.accountCount(accounts.length)}
+    <div class="min-w-0 flex flex-1 items-center gap-3">
+      <div class="min-w-0 grid gap-0.5">
+        <div class="min-w-0 flex items-center gap-2">
+          <span class="text-[13px] font-semibold tracking-[0.04em] text-ink/80">ILoveCodex</span>
+          <span
+            class="theme-version-pill inline-flex items-center rounded-md bg-black/[0.05] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-strong"
+          >
+            v{workspaceVersion}
+          </span>
+          {#if workspaceStatusText}
+            <span
+              class={`min-w-0 flex-1 truncate text-[11px] ${workspaceStatusToneClass}`}
+              aria-live="polite"
+            >
+              {workspaceStatusText}
+            </span>
+          {/if}
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[12px] font-medium text-ink/54">
+            {currentView === 'tags'
+              ? copy.tagManager
+              : currentView === 'providers'
+                ? copy.providerList
+                : copy.accountList}
+          </span>
+          <span class="text-[11px] text-ink/34">·</span>
+          <span class="text-[12px] font-semibold tabular-nums text-ink/72">
+            {currentView === 'tags'
+              ? `${tags.length} ${copy.tagManager}`
+              : currentView === 'providers'
+                ? copy.providerCount(providers.length)
+                : copy.accountCount(accounts.length)}
+          </span>
+        </div>
       </div>
     </div>
 
-    <div
-      class="theme-toolbar inline-flex items-center gap-1 rounded-[0.8rem] border border-black/8 bg-black/[0.03] p-1"
-    >
-      <button
-        class={`theme-view-toggle inline-flex items-center gap-2 rounded-[0.7rem] px-3 py-2 text-sm font-medium transition-colors duration-140 ${
-          currentView === 'accounts'
-            ? 'theme-view-toggle-active bg-white text-ink'
-            : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
-        }`}
-        type="button"
-        onclick={() => {
-          currentView = 'accounts'
-        }}
+    <div class="flex flex-wrap items-center justify-end gap-2">
+      {#if updateSummary}
+        <span class="text-xs text-muted-strong" aria-live="polite">{updateSummary}</span>
+      {/if}
+
+      {#if updateActionLabel}
+        <button class={compactGhostButton} type="button" onclick={runUpdateAction}>
+          {updateActionLabel}
+        </button>
+      {/if}
+
+      <div
+        class="theme-toolbar inline-flex items-center gap-1 rounded-[0.8rem] border border-black/8 bg-black/[0.03] p-1"
       >
-        <span class="i-lucide-layout-list h-4 w-4"></span>
-        <span>{copy.accountCount(accounts.length)}</span>
-      </button>
-      <button
-        class={`theme-view-toggle inline-flex items-center gap-2 rounded-[0.7rem] px-3 py-2 text-sm font-medium transition-colors duration-140 ${
-          currentView === 'providers'
-            ? 'theme-view-toggle-active bg-white text-ink'
-            : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
-        }`}
-        type="button"
-        onclick={() => {
-          currentView = 'providers'
-        }}
-      >
-        <span class="i-lucide-plug-zap h-4 w-4"></span>
-        <span>{copy.providerCount(providers.length)}</span>
-      </button>
-      <button
-        class={`theme-view-toggle inline-flex items-center gap-2 rounded-[0.7rem] px-3 py-2 text-sm font-medium transition-colors duration-140 ${
-          currentView === 'tags'
-            ? 'theme-view-toggle-active bg-white text-ink'
-            : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
-        }`}
-        type="button"
-        onclick={() => {
-          currentView = 'tags'
-        }}
-      >
-        <span class="i-lucide-tags h-4 w-4"></span>
-        <span>{copy.tagManager}</span>
-      </button>
+        <button
+          class={`theme-view-toggle inline-flex items-center gap-2 rounded-[0.7rem] px-3 py-2 text-sm font-medium transition-colors duration-140 ${
+            currentView === 'accounts'
+              ? 'theme-view-toggle-active bg-white text-ink'
+              : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
+          }`}
+          type="button"
+          onclick={() => {
+            currentView = 'accounts'
+          }}
+        >
+          <span class="i-lucide-layout-list h-4 w-4"></span>
+          <span>{copy.accountCount(accounts.length)}</span>
+        </button>
+        <button
+          class={`theme-view-toggle inline-flex items-center gap-2 rounded-[0.7rem] px-3 py-2 text-sm font-medium transition-colors duration-140 ${
+            currentView === 'providers'
+              ? 'theme-view-toggle-active bg-white text-ink'
+              : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
+          }`}
+          type="button"
+          onclick={() => {
+            currentView = 'providers'
+          }}
+        >
+          <span class="i-lucide-plug-zap h-4 w-4"></span>
+          <span>{copy.providerCount(providers.length)}</span>
+        </button>
+        <button
+          class={`theme-view-toggle inline-flex items-center gap-2 rounded-[0.7rem] px-3 py-2 text-sm font-medium transition-colors duration-140 ${
+            currentView === 'tags'
+              ? 'theme-view-toggle-active bg-white text-ink'
+              : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
+          }`}
+          type="button"
+          onclick={() => {
+            currentView = 'tags'
+          }}
+        >
+          <span class="i-lucide-tags h-4 w-4"></span>
+          <span>{copy.tagManager}</span>
+        </button>
+      </div>
     </div>
   </div>
 
