@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.5 - 2026-04-23
+
+This patch release restores packaged desktop account visibility after the local mock-data controls added in 0.3.4.
+
+- Fixed packaged desktop builds so stored real accounts are shown directly instead of being filtered through the development-only mock-data view.
+- Kept mock-account filtering available only in local development, where the mock-data toggle is exposed and expected.
+- Preserved the raw app snapshot in the renderer so development mock/real filtering can be reapplied safely after app metadata loads.
+
 ## 0.3.4 - 2026-04-23
 
 This patch release improves local account diagnostics, mock-data controls, and usage visibility across the desktop app and CLI.

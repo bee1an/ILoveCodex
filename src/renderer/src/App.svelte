@@ -78,6 +78,7 @@
     runningTokenCostSummary: null,
     runningTokenCostInstanceIds: []
   }
+  let rawSnapshot: AppSnapshot = snapshot
   let appMeta: AppMeta = {
     version: '--',
     githubUrl: null,
@@ -249,6 +250,7 @@
 
   const refreshAppMeta = async (): Promise<void> => {
     appMeta = await window.codexApp.getAppMeta()
+    applySnapshot(rawSnapshot)
   }
 
   const refreshUpdateState = async (): Promise<void> => {
@@ -283,7 +285,9 @@
   }
 
   const applySnapshot = (nextSnapshot: AppSnapshot): void => {
-    const visibleSnapshot = filterLocalMockAppSnapshot(nextSnapshot)
+    rawSnapshot = nextSnapshot
+    const visibleSnapshot =
+      appMeta.isPackaged === false ? filterLocalMockAppSnapshot(nextSnapshot) : nextSnapshot
     snapshot = visibleSnapshot
     applyTheme(visibleSnapshot.settings.theme)
     usageByAccountId = {

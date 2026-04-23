@@ -154,11 +154,15 @@
     return rollup.total
   }
 
-  const buildSnapshotTopologyKey = (): string =>
+  const buildSnapshotTopologyKey = (
+    instanceIds = runningTokenCostInstanceIds,
+    costByInstanceId = tokenCostByInstanceId,
+    errorByInstanceId = tokenCostErrorByInstanceId
+  ): string =>
     JSON.stringify({
-      runningTokenCostInstanceIds: [...runningTokenCostInstanceIds],
-      tokenCostInstanceIds: Object.keys(tokenCostByInstanceId).sort(),
-      tokenCostErrorEntries: Object.entries(tokenCostErrorByInstanceId).sort(([left], [right]) =>
+      runningTokenCostInstanceIds: [...instanceIds],
+      tokenCostInstanceIds: Object.keys(costByInstanceId).sort(),
+      tokenCostErrorEntries: Object.entries(errorByInstanceId).sort(([left], [right]) =>
         left.localeCompare(right)
       )
     })
@@ -631,7 +635,11 @@
   $: snapshotSelectedSummary =
     runningTokenCostSummary ?? Object.values(tokenCostByInstanceId)[0] ?? null
   $: selectedSummary = detail?.summary ?? snapshotSelectedSummary
-  $: currentSnapshotTopologyKey = buildSnapshotTopologyKey()
+  $: currentSnapshotTopologyKey = buildSnapshotTopologyKey(
+    runningTokenCostInstanceIds,
+    tokenCostByInstanceId,
+    tokenCostErrorByInstanceId
+  )
   $: snapshotError = Object.values(tokenCostErrorByInstanceId).find(Boolean) ?? ''
   $: warningMessages = [
     ...new Set(
@@ -714,7 +722,10 @@
     <div class="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(300px,0.82fr)]">
       <div class="grid gap-4" data-motion-item>
         <div class="grid gap-3 sm:grid-cols-2">
-          <div class="stats-metric-block stats-metric-tokens group grid gap-2 rounded-2xl px-4 py-4 sm:px-5" data-motion-item>
+          <div
+            class="stats-metric-block stats-metric-tokens group grid gap-2 rounded-2xl px-4 py-4 sm:px-5"
+            data-motion-item
+          >
             <div class="flex items-center justify-between gap-3">
               <p class="text-[11px] font-bold uppercase tracking-[0.24em] text-faint">
                 {copy.today}
@@ -738,7 +749,10 @@
             </p>
           </div>
 
-          <div class="stats-metric-block stats-metric-cost group grid gap-2 rounded-2xl px-4 py-4 sm:px-5" data-motion-item>
+          <div
+            class="stats-metric-block stats-metric-cost group grid gap-2 rounded-2xl px-4 py-4 sm:px-5"
+            data-motion-item
+          >
             <div class="flex items-center justify-between gap-3">
               <p class="text-[11px] font-bold uppercase tracking-[0.24em] text-faint">
                 {copy.last30Days}

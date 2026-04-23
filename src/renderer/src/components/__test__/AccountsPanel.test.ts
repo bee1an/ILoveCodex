@@ -993,7 +993,6 @@ describe('AccountsPanel', () => {
   })
 
   it('并发统计请求只保留最新一次结果', async () => {
-    let resolveFirst: ((value: TokenCostDetail) => void) | undefined
     let rejectFirst: ((reason?: unknown) => void) | undefined
     let resolveSecond: ((value: TokenCostDetail) => void) | undefined
 
@@ -1001,8 +1000,7 @@ describe('AccountsPanel', () => {
       .fn()
       .mockImplementationOnce(
         () =>
-          new Promise<TokenCostDetail>((resolve, reject) => {
-            resolveFirst = resolve
+          new Promise<TokenCostDetail>((_resolve, reject) => {
             rejectFirst = reject
           })
       )
