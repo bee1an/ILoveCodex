@@ -19,6 +19,7 @@ import {
 } from './cli-parsing'
 import {
   accountLabel,
+  formatSettingsValue,
   instanceLabel,
   printAccountList,
   printDoctorReport,
@@ -600,8 +601,7 @@ async function execute(
 
           const settingKey = ensureSettingsKey(key)
           if (!silent) {
-            const value = settings[settingKey]
-            console.log(Array.isArray(value) ? value.join(',') : value)
+            console.log(formatSettingsValue(settingKey, settings))
           }
           return { code: EXIT_OK, payload: toCliResult(settings[settingKey]) }
         }

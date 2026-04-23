@@ -6,7 +6,8 @@ const rendererComponentTests = [
   'src/renderer/src/components/__test__/AccountsListView.test.ts',
   'src/renderer/src/components/__test__/AccountsPanel.test.ts',
   'src/renderer/src/components/__test__/AccountsProvidersView.test.ts',
-  'src/renderer/src/components/__test__/AccountsTagsView.test.ts'
+  'src/renderer/src/components/__test__/AccountsTagsView.test.ts',
+  'src/renderer/src/components/__test__/HeroPanel.test.ts'
 ]
 
 export default defineConfig({

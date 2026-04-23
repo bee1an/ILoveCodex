@@ -1,9 +1,16 @@
-import { beforeEach } from 'vitest'
+import { beforeEach, vi } from 'vitest'
 
 if (typeof Element !== 'undefined' && typeof Element.prototype.getAnimations !== 'function') {
   Object.defineProperty(Element.prototype, 'getAnimations', {
     configurable: true,
     value: () => []
+  })
+}
+
+if (typeof HTMLCanvasElement !== 'undefined') {
+  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+    configurable: true,
+    value: vi.fn(() => ({}))
   })
 }
 

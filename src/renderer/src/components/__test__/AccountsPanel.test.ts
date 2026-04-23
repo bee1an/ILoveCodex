@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TokenCostDetail } from '../../../../shared/codex'
 
 type MockAction = {
@@ -23,6 +23,14 @@ function createDeferred(): {
     resolve
   }
 }
+
+const chartConfigs: Array<{
+  type: string
+  data?: {
+    labels?: unknown[]
+    datasets?: Array<{ label?: string }>
+  }
+}> = []
 
 vi.mock('svelte-dnd-action', () => {
   const noop = (): void => undefined
@@ -48,6 +56,40 @@ vi.mock('../gsap-motion', () => {
     animateProgress: action,
     cascadeIn: action,
     reveal: action
+  }
+})
+
+vi.mock('chart.js', () => {
+  class MockChart {
+    static register = vi.fn()
+    data: unknown
+    options: unknown
+
+    constructor(_context: unknown, config: (typeof chartConfigs)[number]) {
+      this.data = config.data
+      this.options = config
+      chartConfigs.push(config)
+    }
+
+    update(): void {}
+
+    destroy(): void {}
+  }
+
+  class MockChartPart {}
+
+  return {
+    BarController: MockChartPart,
+    BarElement: MockChartPart,
+    CategoryScale: MockChartPart,
+    Chart: MockChart,
+    Filler: MockChartPart,
+    Legend: MockChartPart,
+    LineController: MockChartPart,
+    LineElement: MockChartPart,
+    LinearScale: MockChartPart,
+    PointElement: MockChartPart,
+    Tooltip: MockChartPart
   }
 })
 
@@ -100,6 +142,7 @@ function renderAccountsPanel(
       runUpdateAction: vi.fn(),
       language: 'zh-CN',
       accounts,
+      codexInstances: [],
       providers: [],
       tags,
       activeAccountId: 'acct-1',
@@ -110,6 +153,12 @@ function renderAccountsPanel(
       tokenCostErrorByInstanceId: {},
       runningTokenCostSummary: null,
       runningTokenCostInstanceIds: [],
+      statsDisplay: {
+        dailyTrend: true,
+        modelBreakdown: true,
+        instanceUsage: true,
+        accountUsage: true
+      },
       wakeSchedulesByAccountId: {},
       loginActionBusy: false,
       loginStarting: false,
@@ -140,6 +189,8 @@ function renderAccountsPanel(
       deleteTag: vi.fn().mockResolvedValue(undefined),
       updateAccountTags: vi.fn().mockResolvedValue(undefined),
       refreshAccountUsage: vi.fn(),
+      updateShowLocalMockData: vi.fn(),
+      updateStatsDisplay: vi.fn().mockResolvedValue(undefined),
       removeAccount: vi.fn(),
       removeAccounts: vi.fn().mockResolvedValue(undefined),
       exportSelectedAccounts: vi.fn().mockResolvedValue(undefined),
@@ -170,6 +221,10 @@ const getMetricBlockText = (label: string): string =>
     ?.closest('.stats-metric-block')?.textContent ?? ''
 
 describe('AccountsPanel', () => {
+  beforeEach(() => {
+    chartConfigs.length = 0
+  })
+
   it('在切换 tabs 后保持账户筛选、选择和工作台展开状态', async () => {
     renderAccountsPanel()
 
@@ -331,6 +386,8 @@ describe('AccountsPanel', () => {
       deleteTag: vi.fn().mockResolvedValue(undefined),
       updateAccountTags: vi.fn().mockResolvedValue(undefined),
       refreshAccountUsage: vi.fn(),
+      updateShowLocalMockData: vi.fn(),
+      updateStatsDisplay: vi.fn().mockResolvedValue(undefined),
       removeAccount: vi.fn(),
       removeAccounts: vi.fn().mockResolvedValue(undefined),
       exportSelectedAccounts: vi.fn().mockResolvedValue(undefined),
@@ -389,6 +446,170 @@ describe('AccountsPanel', () => {
     expect(screen.getByText(copy.updatedAt).parentElement?.textContent ?? '').toContain(
       expectedUpdatedAt
     )
+  })
+
+  it('实例图表使用实例汇总快照而不是单个明细汇总', async () => {
+    const readTokenCost = vi.fn().mockResolvedValue({
+      instanceId: '__all__',
+      codexHome: '/tmp/.codex',
+      source: 'local',
+      summary: {
+        sessionTokens: 0,
+        sessionCostUSD: null,
+        last30DaysTokens: 0,
+        last30DaysCostUSD: null,
+        updatedAt: '2026-04-21T00:00:00.000Z'
+      },
+      daily: []
+    })
+
+    renderAccountsPanel({
+      codexInstances: [
+        {
+          id: '__default__',
+          name: '',
+          codexHome: '/tmp/.codex',
+          extraArgs: '',
+          isDefault: true,
+          createdAt: '2026-04-21T00:00:00.000Z',
+          updatedAt: '2026-04-21T00:00:00.000Z',
+          running: false,
+          initialized: true
+        },
+        {
+          id: 'inst-work',
+          name: 'Work',
+          codexHome: '/tmp/instances/work',
+          extraArgs: '',
+          isDefault: false,
+          createdAt: '2026-04-21T00:00:00.000Z',
+          updatedAt: '2026-04-21T00:00:00.000Z',
+          running: true,
+          initialized: true
+        }
+      ],
+      tokenCostByInstanceId: {
+        __default__: {
+          sessionTokens: 20,
+          sessionCostUSD: 0.0002,
+          last30DaysTokens: 80,
+          last30DaysCostUSD: 0.0008,
+          updatedAt: '2026-04-21T00:00:00.000Z'
+        },
+        'inst-work': {
+          sessionTokens: 40,
+          sessionCostUSD: 0.0004,
+          last30DaysTokens: 180,
+          last30DaysCostUSD: 0.0018,
+          updatedAt: '2026-04-22T00:00:00.000Z'
+        }
+      },
+      runningTokenCostSummary: {
+        sessionTokens: 60,
+        sessionCostUSD: 0.0006,
+        last30DaysTokens: 260,
+        last30DaysCostUSD: 0.0026,
+        updatedAt: '2026-04-22T00:00:00.000Z'
+      },
+      runningTokenCostInstanceIds: ['inst-work'],
+      readTokenCost
+    })
+
+    await fireEvent.click(screen.getByRole('button', { name: copy.tokenStats }))
+    await waitFor(() => expect(readTokenCost).toHaveBeenCalledTimes(1))
+
+    expect(
+      chartConfigs.some(
+        (config) => JSON.stringify(config.data?.labels ?? []) === JSON.stringify(['Work', 'default'])
+      )
+    ).toBe(true)
+  })
+
+  it('账号图表使用账号展示名而不是裸 account id', async () => {
+    const readTokenCost = vi.fn().mockResolvedValue({
+      instanceId: '__all__',
+      codexHome: '/tmp/.codex',
+      source: 'local',
+      summary: {
+        sessionTokens: 0,
+        sessionCostUSD: null,
+        last30DaysTokens: 0,
+        last30DaysCostUSD: null,
+        updatedAt: '2026-04-21T00:00:00.000Z'
+      },
+      daily: []
+    })
+
+    renderAccountsPanel({
+      usageByAccountId: {
+        'acct-1': {
+          limitId: 'codex',
+          limitName: 'Codex',
+          planType: 'plus',
+          primary: {
+            usedPercent: 25,
+            windowDurationMins: 300,
+            resetsAt: null
+          },
+          secondary: null,
+          credits: null,
+          limits: [],
+          fetchedAt: '2026-04-21T00:00:00.000Z'
+        },
+        'acct-2': {
+          limitId: 'codex',
+          limitName: 'Codex',
+          planType: 'plus',
+          primary: {
+            usedPercent: 80,
+            windowDurationMins: 300,
+            resetsAt: null
+          },
+          secondary: null,
+          credits: null,
+          limits: [],
+          fetchedAt: '2026-04-21T01:00:00.000Z'
+        }
+      },
+      readTokenCost
+    })
+
+    await fireEvent.click(screen.getByRole('button', { name: copy.tokenStats }))
+    await waitFor(() => expect(readTokenCost).toHaveBeenCalledTimes(1))
+
+    expect(
+      chartConfigs.some(
+        (config) =>
+          JSON.stringify(config.data?.labels ?? []) ===
+          JSON.stringify(['untagged@example.com', 'tagged@example.com'])
+      )
+    ).toBe(true)
+  })
+
+  it('统计页连续切换显示配置时保留前一次改动', async () => {
+    const updateStatsDisplay = vi.fn().mockResolvedValue(undefined)
+
+    renderAccountsPanel({
+      updateStatsDisplay
+    })
+
+    await fireEvent.click(screen.getByRole('button', { name: copy.tokenStats }))
+
+    await fireEvent.click(screen.getByRole('checkbox', { name: copy.instanceUsage }))
+    expect(updateStatsDisplay).toHaveBeenCalledWith({
+      dailyTrend: true,
+      modelBreakdown: true,
+      instanceUsage: false,
+      accountUsage: true
+    })
+
+    await fireEvent.click(screen.getByRole('checkbox', { name: copy.modelBreakdown }))
+    expect(updateStatsDisplay).toHaveBeenLastCalledWith({
+      dailyTrend: true,
+      modelBreakdown: false,
+      instanceUsage: false,
+      accountUsage: true
+    })
   })
 
   it('统计页成功拉取明细后不再继续展示旧的 snapshot 告警', async () => {
@@ -523,6 +744,8 @@ describe('AccountsPanel', () => {
       deleteTag: vi.fn().mockResolvedValue(undefined),
       updateAccountTags: vi.fn().mockResolvedValue(undefined),
       refreshAccountUsage: vi.fn(),
+      updateShowLocalMockData: vi.fn(),
+      updateStatsDisplay: vi.fn().mockResolvedValue(undefined),
       removeAccount: vi.fn(),
       removeAccounts: vi.fn().mockResolvedValue(undefined),
       exportSelectedAccounts: vi.fn().mockResolvedValue(undefined),
@@ -638,6 +861,8 @@ describe('AccountsPanel', () => {
       deleteTag: vi.fn().mockResolvedValue(undefined),
       updateAccountTags: vi.fn().mockResolvedValue(undefined),
       refreshAccountUsage: vi.fn(),
+      updateShowLocalMockData: vi.fn(),
+      updateStatsDisplay: vi.fn().mockResolvedValue(undefined),
       removeAccount: vi.fn(),
       removeAccounts: vi.fn().mockResolvedValue(undefined),
       exportSelectedAccounts: vi.fn().mockResolvedValue(undefined),
@@ -765,6 +990,8 @@ describe('AccountsPanel', () => {
       deleteTag: vi.fn().mockResolvedValue(undefined),
       updateAccountTags: vi.fn().mockResolvedValue(undefined),
       refreshAccountUsage: vi.fn(),
+      updateShowLocalMockData: vi.fn(),
+      updateStatsDisplay: vi.fn().mockResolvedValue(undefined),
       removeAccount: vi.fn(),
       removeAccounts: vi.fn().mockResolvedValue(undefined),
       exportSelectedAccounts: vi.fn().mockResolvedValue(undefined),
@@ -839,6 +1066,8 @@ describe('AccountsPanel', () => {
       deleteTag: vi.fn().mockResolvedValue(undefined),
       updateAccountTags: vi.fn().mockResolvedValue(undefined),
       refreshAccountUsage: vi.fn(),
+      updateShowLocalMockData: vi.fn(),
+      updateStatsDisplay: vi.fn().mockResolvedValue(undefined),
       removeAccount: vi.fn(),
       removeAccounts: vi.fn().mockResolvedValue(undefined),
       exportSelectedAccounts: vi.fn().mockResolvedValue(undefined),
@@ -978,6 +1207,8 @@ describe('AccountsPanel', () => {
       deleteTag: vi.fn().mockResolvedValue(undefined),
       updateAccountTags: vi.fn().mockResolvedValue(undefined),
       refreshAccountUsage: vi.fn(),
+      updateShowLocalMockData: vi.fn(),
+      updateStatsDisplay: vi.fn().mockResolvedValue(undefined),
       removeAccount: vi.fn(),
       removeAccounts: vi.fn().mockResolvedValue(undefined),
       exportSelectedAccounts: vi.fn().mockResolvedValue(undefined),
@@ -1093,6 +1324,8 @@ describe('AccountsPanel', () => {
       deleteTag: vi.fn().mockResolvedValue(undefined),
       updateAccountTags: vi.fn().mockResolvedValue(undefined),
       refreshAccountUsage: vi.fn(),
+      updateShowLocalMockData: vi.fn(),
+      updateStatsDisplay: vi.fn().mockResolvedValue(undefined),
       removeAccount: vi.fn(),
       removeAccounts: vi.fn().mockResolvedValue(undefined),
       exportSelectedAccounts: vi.fn().mockResolvedValue(undefined),

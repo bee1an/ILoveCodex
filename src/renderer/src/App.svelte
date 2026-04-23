@@ -33,6 +33,7 @@
     LoginEvent,
     LoginMethod,
     PortOccupant,
+    StatsDisplaySettings,
     UpdateAccountWakeScheduleInput,
     WakeAccountRequestResult,
     WakeAccountRateLimitsInput,
@@ -41,7 +42,9 @@
   import {
     filterLocalMockAppSnapshot,
     accountTransferFormats,
+    defaultStatsDisplaySettings,
     formatRelativeReset,
+    normalizeStatsDisplaySettings,
     resolveBestAccount,
     shouldAutoPollUsage,
     supportsWeeklyQuota
@@ -68,7 +71,8 @@
       theme: 'light',
       checkForUpdatesOnStartup: true,
       codexDesktopExecutablePath: '',
-      showLocalMockData: true
+      showLocalMockData: true,
+      statsDisplay: defaultStatsDisplaySettings()
     },
     usageByAccountId: {},
     usageErrorByAccountId: {},
@@ -1013,6 +1017,19 @@
     )
   }
 
+  const updateStatsDisplay = async (statsDisplay: StatsDisplaySettings): Promise<void> => {
+    const current = normalizeStatsDisplaySettings(snapshot.settings.statsDisplay)
+    const next = normalizeStatsDisplaySettings(statsDisplay)
+
+    if (JSON.stringify(current) === JSON.stringify(next)) {
+      return
+    }
+
+    await runAction('settings:stats-display', () =>
+      window.codexApp.updateSettings({ statsDisplay: next })
+    )
+  }
+
   const openMainPanel = async (): Promise<void> => {
     applySnapshot(await window.codexApp.openMainWindow())
   }
@@ -1205,6 +1222,7 @@
               language={snapshot.settings.language}
               showLocalMockData={snapshot.settings.showLocalMockData !== false}
               accounts={snapshot.accounts}
+              codexInstances={snapshot.codexInstances}
               providers={snapshot.providers}
               tags={snapshot.tags}
               activeAccountId={snapshot.activeAccountId}
@@ -1215,6 +1233,7 @@
               tokenCostErrorByInstanceId={snapshot.tokenCostErrorByInstanceId}
               runningTokenCostSummary={snapshot.runningTokenCostSummary}
               runningTokenCostInstanceIds={snapshot.runningTokenCostInstanceIds}
+              statsDisplay={normalizeStatsDisplaySettings(snapshot.settings.statsDisplay)}
               wakeSchedulesByAccountId={snapshot.wakeSchedulesByAccountId}
               loginActionBusy={loginActionBusy()}
               {loginStarting}
@@ -1248,6 +1267,7 @@
               {updateAccountTags}
               refreshAccountUsage={(account) => readRateLimits(account, { force: true })}
               {updateShowLocalMockData}
+              {updateStatsDisplay}
               {openWakeDialog}
               {removeAccount}
               {removeAccounts}
@@ -1456,6 +1476,7 @@
     {updatePollingInterval}
     {updateCheckForUpdatesOnStartup}
     {updateShowLocalMockData}
+    {updateStatsDisplay}
     {updateCodexDesktopExecutablePath}
     showCodexDesktopExecutablePath={shouldShowCodexDesktopExecutablePath()}
     showLocalMockToggle={appMeta.isPackaged === false}

@@ -7,8 +7,10 @@
     AccountTag,
     AccountWakeSchedule,
     AppLanguage,
+    CodexInstanceSummary,
     CustomProviderDetail,
     CustomProviderSummary,
+    StatsDisplaySettings,
     TokenCostDetail,
     TokenCostReadOptions,
     TokenCostSummary,
@@ -45,6 +47,7 @@
   export let language: AppLanguage
   export let showLocalMockData = true
   export let accounts: AccountSummary[] = []
+  export let codexInstances: CodexInstanceSummary[] = []
   export let providers: CustomProviderSummary[] = []
   export let tags: AccountTag[] = []
   export let activeAccountId: string | undefined
@@ -55,6 +58,7 @@
   export let tokenCostErrorByInstanceId: Record<string, string>
   export let runningTokenCostSummary: TokenCostSummary | null
   export let runningTokenCostInstanceIds: string[]
+  export let statsDisplay: StatsDisplaySettings
   export let wakeSchedulesByAccountId: Record<string, AccountWakeSchedule>
   export let loginActionBusy: boolean
   export let loginStarting = false
@@ -77,6 +81,7 @@
   export let updateAccountTags: (account: AccountSummary, tagIds: string[]) => Promise<void>
   export let refreshAccountUsage: (account: AccountSummary) => void
   export let updateShowLocalMockData: (enabled: boolean) => void
+  export let updateStatsDisplay: (statsDisplay: StatsDisplaySettings) => Promise<void>
   export let removeAccount: (account: AccountSummary) => void
   export let removeAccounts: (accountIds: string[]) => Promise<void>
   export let exportSelectedAccounts: (accountIds: string[]) => Promise<void>
@@ -379,12 +384,17 @@
     <CostStatsView
       {copy}
       {language}
+      {accounts}
+      {codexInstances}
+      {usageByAccountId}
       {tokenCostByInstanceId}
       {tokenCostErrorByInstanceId}
       {runningTokenCostSummary}
       {runningTokenCostInstanceIds}
+      {statsDisplay}
       {compactGhostButton}
       {readTokenCost}
+      {updateStatsDisplay}
     />
   {:else if currentView === 'tags'}
     <AccountsTagsView

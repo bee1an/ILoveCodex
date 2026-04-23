@@ -3,8 +3,10 @@
     AppSettings,
     AppUpdateState,
     CreateCustomProviderInput,
-    LoginEvent
+    LoginEvent,
+    StatsDisplaySettings
   } from '../../../shared/codex'
+  import { normalizeStatsDisplaySettings } from '../../../shared/codex'
   import { type LocalizedCopy } from './app-view'
   import { cascadeIn, reveal } from './gsap-motion'
 
@@ -26,6 +28,7 @@
   export let updatePollingInterval: (minutes: number) => void
   export let updateCheckForUpdatesOnStartup: (enabled: boolean) => void
   export let updateShowLocalMockData: (enabled: boolean) => void
+  export let updateStatsDisplay: (statsDisplay: StatsDisplaySettings) => Promise<void>
   export let updateCodexDesktopExecutablePath: (value: string) => Promise<void>
   export let showLocalMockToggle = false
   export let checkForUpdates: () => void
@@ -83,6 +86,18 @@
   let codexDesktopExecutablePathDraft = ''
   let lastSyncedCodexDesktopExecutablePath = ''
   let showCodexDesktopExecutableEditor = false
+  let statsDisplay = normalizeStatsDisplaySettings(settings.statsDisplay)
+
+  $: statsDisplay = normalizeStatsDisplaySettings(settings.statsDisplay)
+
+  const setStatsDisplay = (key: keyof StatsDisplaySettings, enabled: boolean): void => {
+    const next = normalizeStatsDisplaySettings({
+      ...statsDisplay,
+      [key]: enabled
+    })
+    statsDisplay = next
+    void updateStatsDisplay(next)
+  }
 
   $: if (settings.codexDesktopExecutablePath !== lastSyncedCodexDesktopExecutablePath) {
     lastSyncedCodexDesktopExecutablePath = settings.codexDesktopExecutablePath
@@ -267,6 +282,52 @@
               <span>{copy.showLocalMockData}</span>
             </label>
           {/if}
+
+          <div class="grid gap-3 rounded-2xl border border-black/7 bg-white/70 px-4 py-4">
+            <div class="grid gap-1">
+              <p class="text-sm font-medium text-ink">{copy.displayConfig}</p>
+              <p class="text-xs leading-5 text-muted-strong">{copy.displayConfigDescription}</p>
+            </div>
+
+            <div class="grid gap-2 sm:grid-cols-2">
+              {#each [
+                {
+                  key: 'dailyTrend',
+                  label: copy.dailyTrend,
+                  description: copy.tokenStatsDescription
+                },
+                {
+                  key: 'modelBreakdown',
+                  label: copy.modelBreakdown,
+                  description: copy.last30Days
+                },
+                {
+                  key: 'instanceUsage',
+                  label: copy.instanceUsage,
+                  description: copy.instanceUsageDescription
+                },
+                {
+                  key: 'accountUsage',
+                  label: copy.accountUsage,
+                  description: copy.accountUsageDescription
+                }
+              ] as option (option.key)}
+                <label class="inline-flex items-start gap-3 rounded-xl border border-black/8 bg-white px-3 py-3 text-sm text-ink">
+                  <input
+                    class="mt-0.5 h-4 w-4 rounded border border-black/14 accent-black"
+                    type="checkbox"
+                    checked={statsDisplay[option.key]}
+                    onchange={(event) =>
+                      setStatsDisplay(option.key, (event.currentTarget as HTMLInputElement).checked)}
+                  />
+                  <span class="grid gap-1">
+                    <span class="font-medium">{option.label}</span>
+                    <span class="text-xs leading-5 text-muted-strong">{option.description}</span>
+                  </span>
+                </label>
+              {/each}
+            </div>
+          </div>
 
           {#if showCodexDesktopExecutablePath}
             <div class="flex flex-wrap items-center gap-3">

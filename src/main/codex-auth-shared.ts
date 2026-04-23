@@ -13,7 +13,11 @@ import type {
   PortOccupant
 } from '../shared/codex'
 import type { CodexPlatformAdapter, ProtectedPayload } from '../shared/codex-platform'
-import { decodeJwtPayload, resolveChatGptAccountIdFromTokens } from '../shared/openai-auth'
+import {
+  decodeJwtPayload,
+  resolveChatGptAccountIdFromTokens
+} from '../shared/openai-auth'
+import { defaultStatsDisplaySettings, normalizeStatsDisplaySettings } from '../shared/codex'
 
 export interface CodexAuthPayload {
   auth_mode?: string
@@ -61,7 +65,8 @@ function defaultSettings(): AppSettings {
     theme: 'light',
     checkForUpdatesOnStartup: true,
     codexDesktopExecutablePath: '',
-    showLocalMockData: true
+    showLocalMockData: true,
+    statsDisplay: defaultStatsDisplaySettings()
   }
 }
 
@@ -138,7 +143,8 @@ function normalizePersistedState(parsed: PersistedState | LegacyPersistedState):
     tags: parsed.tags ?? [],
     settings: {
       ...defaultSettings(),
-      ...('settings' in parsed ? parsed.settings : {})
+      ...('settings' in parsed ? parsed.settings : {}),
+      statsDisplay: normalizeStatsDisplaySettings(parsed.settings?.statsDisplay)
     },
     usageByAccountId: parsed.usageByAccountId ?? {},
     usageErrorByAccountId: parsed.usageErrorByAccountId ?? {},

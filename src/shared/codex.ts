@@ -1,6 +1,19 @@
 export type LoginMethod = 'browser' | 'device'
 export type AppLanguage = 'zh-CN' | 'en'
 export type AppTheme = 'light' | 'dark' | 'system'
+export const statsDisplayKeys = [
+  'dailyTrend',
+  'modelBreakdown',
+  'instanceUsage',
+  'accountUsage'
+] as const
+export type StatsDisplayKey = (typeof statsDisplayKeys)[number]
+export interface StatsDisplaySettings {
+  dailyTrend: boolean
+  modelBreakdown: boolean
+  instanceUsage: boolean
+  accountUsage: boolean
+}
 export const accountTransferFormats = [
   'ilovecodex',
   'cockpit_tools',
@@ -17,6 +30,7 @@ export interface AppSettings {
   checkForUpdatesOnStartup: boolean
   codexDesktopExecutablePath: string
   showLocalMockData?: boolean
+  statsDisplay?: StatsDisplaySettings
 }
 
 export interface CustomProviderSummary {
@@ -428,6 +442,38 @@ export function shouldShowLocalMockData(
   settings?: Pick<AppSettings, 'showLocalMockData'> | null
 ): boolean {
   return settings?.showLocalMockData !== false
+}
+
+export function defaultStatsDisplaySettings(): StatsDisplaySettings {
+  return {
+    dailyTrend: true,
+    modelBreakdown: true,
+    instanceUsage: true,
+    accountUsage: true
+  }
+}
+
+export function normalizeStatsDisplaySettings(
+  settings?: Partial<StatsDisplaySettings> | null
+): StatsDisplaySettings {
+  return {
+    ...defaultStatsDisplaySettings(),
+    ...(settings ?? {})
+  }
+}
+
+export function serializeStatsDisplaySettings(
+  settings?: Partial<StatsDisplaySettings> | null
+): string {
+  const normalized = normalizeStatsDisplaySettings(settings)
+  const visibleKeys = statsDisplayKeys.filter((key) => normalized[key])
+  if (visibleKeys.length === statsDisplayKeys.length) {
+    return 'all'
+  }
+  if (!visibleKeys.length) {
+    return 'none'
+  }
+  return visibleKeys.join(',')
 }
 
 function filterSnapshotRecord<T>(

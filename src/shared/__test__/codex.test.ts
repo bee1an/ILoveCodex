@@ -5,8 +5,10 @@ import {
   formatRelativeReset,
   isLocalMockAccount,
   isLocalMockProvider,
+  normalizeStatsDisplaySettings,
   remainingPercent,
   resolveBestAccount,
+  serializeStatsDisplaySettings,
   shouldAutoPollUsage,
   statusBarAccounts,
   usagePollDueInMs,
@@ -97,6 +99,41 @@ describe('codex shared helpers', () => {
     expect(remainingPercent(-20)).toBe(100)
     expect(remainingPercent(25)).toBe(75)
     expect(remainingPercent(140)).toBe(0)
+  })
+
+  it('serializes stats display settings for CLI output', () => {
+    expect(serializeStatsDisplaySettings()).toBe('all')
+    expect(
+      serializeStatsDisplaySettings({
+        dailyTrend: false,
+        modelBreakdown: true,
+        instanceUsage: false,
+        accountUsage: true
+      })
+    ).toBe('modelBreakdown,accountUsage')
+    expect(
+      serializeStatsDisplaySettings(
+        normalizeStatsDisplaySettings({
+          dailyTrend: false,
+          modelBreakdown: false,
+          instanceUsage: false,
+          accountUsage: false
+        })
+      )
+    ).toBe('none')
+  })
+
+  it('normalizes partial stats display settings with token-first defaults', () => {
+    expect(
+      normalizeStatsDisplaySettings({
+        instanceUsage: false
+      })
+    ).toEqual({
+      dailyTrend: true,
+      modelBreakdown: true,
+      instanceUsage: false,
+      accountUsage: true
+    })
   })
 
   it('detects seeded local mock accounts', () => {

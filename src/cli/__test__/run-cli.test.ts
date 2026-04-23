@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { runCli } from '../run-cli'
+import { defaultStatsDisplaySettings } from '../../shared/codex'
 import type {
   AccountRateLimits,
   AppSettings,
@@ -218,7 +219,8 @@ function createRuntime(): {
     language: 'zh-CN',
     theme: 'light',
     checkForUpdatesOnStartup: true,
-    codexDesktopExecutablePath: ''
+    codexDesktopExecutablePath: '',
+    statsDisplay: defaultStatsDisplaySettings()
   }
   const currentSession: CurrentSessionSummary = {
     email: 'one@example.com',
@@ -887,7 +889,8 @@ describe('runCli', () => {
         language: 'zh-CN',
         theme: 'light',
         checkForUpdatesOnStartup: true,
-        codexDesktopExecutablePath: ''
+        codexDesktopExecutablePath: '',
+        statsDisplay: defaultStatsDisplaySettings()
       },
       error: null
     })
@@ -907,7 +910,8 @@ describe('runCli', () => {
         language: 'zh-CN',
         theme: 'light',
         checkForUpdatesOnStartup: false,
-        codexDesktopExecutablePath: ''
+        codexDesktopExecutablePath: '',
+        statsDisplay: defaultStatsDisplaySettings()
       },
       error: null
     })
@@ -933,9 +937,31 @@ describe('runCli', () => {
         language: 'zh-CN',
         theme: 'light',
         checkForUpdatesOnStartup: true,
-        codexDesktopExecutablePath: 'C:\\\\Program Files\\\\Codex\\\\Codex.exe'
+        codexDesktopExecutablePath: 'C:\\\\Program Files\\\\Codex\\\\Codex.exe',
+        statsDisplay: defaultStatsDisplaySettings()
       },
       error: null
+    })
+
+    logSpy.mockClear()
+    await expect(runCli(runtime as never, ['settings', 'get', 'statsDisplay', '--json'])).resolves.toBe(0)
+    expect(parseJsonLog(logSpy)).toEqual({
+      ok: true,
+      data: defaultStatsDisplaySettings(),
+      error: null
+    })
+
+    logSpy.mockClear()
+    await expect(
+      runCli(runtime as never, ['settings', 'set', 'statsDisplay', 'dailyTrend,accountUsage', '--json'])
+    ).resolves.toBe(0)
+    expect(runtime.services.settings.update).toHaveBeenCalledWith({
+      statsDisplay: {
+        dailyTrend: true,
+        modelBreakdown: false,
+        instanceUsage: false,
+        accountUsage: true
+      }
     })
   })
 
@@ -982,6 +1008,19 @@ describe('runCli', () => {
       error: {
         code: 2,
         message: 'checkForUpdatesOnStartup must be true or false'
+      }
+    })
+
+    logSpy.mockClear()
+    await expect(
+      runCli(runtime as never, ['settings', 'set', 'statsDisplay', 'wat', '--json'])
+    ).resolves.toBe(2)
+    expect(parseJsonLog(logSpy)).toEqual({
+      ok: false,
+      data: null,
+      error: {
+        code: 2,
+        message: 'statsDisplay contains unknown chart key: wat'
       }
     })
 

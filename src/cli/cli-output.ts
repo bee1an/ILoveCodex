@@ -13,6 +13,7 @@ import type {
   ProviderCheckReport,
   TokenCostDetail
 } from '../shared/codex'
+import { serializeStatsDisplaySettings } from '../shared/codex'
 
 export function printHelp(): void {
   console.log(`ilc
@@ -313,4 +314,24 @@ export function printSettings(settings: AppSettings, quiet: boolean): void {
   console.log(`theme=${settings.theme}`)
   console.log(`checkForUpdatesOnStartup=${settings.checkForUpdatesOnStartup}`)
   console.log(`codexDesktopExecutablePath=${settings.codexDesktopExecutablePath}`)
+  console.log(`showLocalMockData=${settings.showLocalMockData !== false}`)
+  console.log(`statsDisplay=${serializeStatsDisplaySettings(settings.statsDisplay)}`)
+}
+
+export function formatSettingsValue(key: keyof AppSettings, settings: AppSettings): string {
+  const value = settings[key]
+
+  if (key === 'statusBarAccountIds' && Array.isArray(value)) {
+    return value.join(',')
+  }
+
+  if (key === 'showLocalMockData') {
+    return String(value !== false)
+  }
+
+  if (key === 'statsDisplay') {
+    return serializeStatsDisplaySettings(settings.statsDisplay)
+  }
+
+  return String(value ?? '')
 }

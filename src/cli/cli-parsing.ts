@@ -3,9 +3,11 @@ import type {
   CliSettingsKey,
   CreateCodexInstanceInput,
   CreateCustomProviderInput,
+  StatsDisplaySettings,
   UpdateCodexInstanceInput,
   UpdateCustomProviderInput
 } from '../shared/codex'
+import { normalizeStatsDisplaySettings, statsDisplayKeys } from '../shared/codex'
 import { CliError, EXIT_USAGE } from './cli-errors'
 
 export interface CliFlags {
@@ -27,8 +29,48 @@ const SETTING_KEYS: CliSettingsKey[] = [
   'theme',
   'checkForUpdatesOnStartup',
   'showLocalMockData',
-  'codexDesktopExecutablePath'
+  'codexDesktopExecutablePath',
+  'statsDisplay'
 ]
+
+function parseStatsDisplay(rawValue: string): StatsDisplaySettings {
+  const normalizedValue = rawValue.trim().toLowerCase()
+  if (normalizedValue === 'all') {
+    return normalizeStatsDisplaySettings()
+  }
+
+  if (normalizedValue === 'none') {
+    return normalizeStatsDisplaySettings(
+      Object.fromEntries(statsDisplayKeys.map((key) => [key, false])) as Partial<StatsDisplaySettings>
+    )
+  }
+
+  const keys = rawValue
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+
+  if (!keys.length) {
+    throw new CliError(
+      `statsDisplay must be all, none, or a comma-separated subset of ${statsDisplayKeys.join(', ')}`,
+      EXIT_USAGE
+    )
+  }
+
+  const invalidKey = keys.find((key) => !statsDisplayKeys.includes(key as (typeof statsDisplayKeys)[number]))
+  if (invalidKey) {
+    throw new CliError(
+      `statsDisplay contains unknown chart key: ${invalidKey}`,
+      EXIT_USAGE
+    )
+  }
+
+  return normalizeStatsDisplaySettings(
+    Object.fromEntries(
+      statsDisplayKeys.map((key) => [key, keys.includes(key)])
+    ) as Partial<StatsDisplaySettings>
+  )
+}
 
 export function parseFlags(argv: string[]): { flags: CliFlags; positionals: string[] } {
   const flags: CliFlags = {
@@ -147,6 +189,8 @@ export function parseSettingsValue(
       return rawValue === 'true'
     case 'codexDesktopExecutablePath':
       return rawValue.trim()
+    case 'statsDisplay':
+      return parseStatsDisplay(rawValue)
   }
 }
 

@@ -13,6 +13,7 @@ import type {
   UpdateAccountWakeScheduleInput
 } from '../shared/codex'
 import type { CodexPlatformAdapter, ProtectedPayload } from '../shared/codex-platform'
+import { normalizeStatsDisplaySettings } from '../shared/codex'
 import {
   type CodexAuthPayload,
   type LegacyPersistedState,
@@ -86,6 +87,9 @@ export class CodexAccountStore {
       state.settings = {
         ...state.settings,
         ...nextSettings,
+        statsDisplay: normalizeStatsDisplaySettings(
+          nextSettings.statsDisplay ?? state.settings.statsDisplay
+        ),
         statusBarAccountIds: (
           nextSettings.statusBarAccountIds ?? state.settings.statusBarAccountIds
         ).slice(0, 5)
