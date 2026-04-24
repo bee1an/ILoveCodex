@@ -215,7 +215,7 @@ async function saveAccountsExport(
   }
 ): Promise<void> {
   const dialogWindow = BrowserWindow.getFocusedWindow() ?? fallbackWindow ?? undefined
-  const filePrefix = options?.defaultFilePrefix ?? 'ilovecodex-accounts'
+  const filePrefix = options?.defaultFilePrefix ?? 'codexdock-accounts'
   const exportPath = join(
     app.getPath('downloads'),
     `${filePrefix}-${new Date()
@@ -250,9 +250,9 @@ function exportFileFormatSuffix(format: AccountTransferFormat): string {
       return 'sub2api'
     case 'cliproxyapi':
       return 'cliproxyapi'
-    case 'ilovecodex':
+    case 'codexdock':
     default:
-      return 'ilovecodex'
+      return 'codexdock'
   }
 }
 
@@ -262,14 +262,14 @@ function exportFilePrefix(
     selected?: boolean
   }
 ): string {
-  const base = options?.selected ? 'ilovecodex-selected-accounts' : 'ilovecodex-accounts'
-  return format === 'ilovecodex' ? base : `${base}-${exportFileFormatSuffix(format)}`
+  const base = options?.selected ? 'codexdock-selected-accounts' : 'codexdock-accounts'
+  return format === 'codexdock' ? base : `${base}-${exportFileFormatSuffix(format)}`
 }
 
 function buildTrayTitle(snapshot: AppSnapshot): string {
   const account = resolveCurrentAccount(snapshot)
   if (!account) {
-    return 'Ilovecodex'
+    return 'CodexDock'
   }
 
   const limits = snapshot.usageByAccountId[account.id]
@@ -283,7 +283,7 @@ function buildTrayTooltip(snapshot: AppSnapshot): string {
   const account = resolveCurrentAccount(snapshot)
   const text = localeText(snapshot.settings.language)
   if (!account) {
-    return 'Ilovecodex'
+    return 'CodexDock'
   }
 
   const limits = snapshot.usageByAccountId[account.id]

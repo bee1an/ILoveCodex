@@ -281,7 +281,7 @@ async function fetchLatestGithubRelease(
     {
       headers: {
         Accept: 'application/vnd.github+json',
-        'User-Agent': 'Ilovecodex'
+        'User-Agent': 'CodexDock'
       }
     }
   )

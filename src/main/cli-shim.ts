@@ -2,8 +2,8 @@ import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { posix, win32 } from 'node:path'
 
-const POSIX_MARKER = '# Managed by Ilovecodex CLI'
-const WINDOWS_MARKER = ':: Managed by Ilovecodex CLI'
+const POSIX_MARKER = '# Managed by CodexDock CLI'
+const WINDOWS_MARKER = ':: Managed by CodexDock CLI'
 
 export interface CliShimCandidate {
   dir: string
@@ -125,7 +125,7 @@ export async function installCliShim(
     return { status: 'skipped', reason: 'not-packaged' }
   }
 
-  const shimName = platform === 'win32' ? 'ilc.cmd' : 'ilc'
+  const shimName = platform === 'win32' ? 'cdock.cmd' : 'cdock'
   const pathApi = platform === 'win32' ? win32 : posix
   const desiredContent = buildCliShimContent(options.appPath, platform)
 

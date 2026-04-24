@@ -12,7 +12,7 @@ const NOW = new Date('2026-04-22T12:00:00+08:00')
 const createdDirectories: string[] = []
 
 async function createTempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'ilovecodex-cost-'))
+  const dir = await mkdtemp(join(tmpdir(), 'codexdock-cost-'))
   createdDirectories.push(dir)
   return dir
 }

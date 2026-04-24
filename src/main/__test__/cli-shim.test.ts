@@ -18,8 +18,8 @@ describe('cli shim helpers', () => {
 
   it('builds a posix shim with the managed marker', () => {
     expect(
-      buildCliShimContent('/Applications/Ilovecodex.app/Contents/MacOS/Ilovecodex', 'darwin')
-    ).toContain('Managed by Ilovecodex CLI')
+      buildCliShimContent('/Applications/CodexDock.app/Contents/MacOS/CodexDock', 'darwin')
+    ).toContain('Managed by CodexDock CLI')
   })
 
   it('prefers PATH directories for shim installation', () => {
@@ -38,9 +38,9 @@ describe('cli shim helpers', () => {
   })
 
   it('installs the shim into a writable PATH directory', async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'ilc-shim-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'cdock-shim-'))
     const binDir = join(tempDir, 'bin')
-    const appPath = join(tempDir, 'Ilovecodex')
+    const appPath = join(tempDir, 'CodexDock')
 
     const result = await installCliShim({
       appPath,
@@ -55,21 +55,21 @@ describe('cli shim helpers', () => {
 
     expect(result.status).toBe('installed')
     expect(result.onPath).toBe(true)
-    expect(result.shimPath).toBe(join(binDir, 'ilc'))
-    await expect(readFile(join(binDir, 'ilc'), 'utf8')).resolves.toContain(
+    expect(result.shimPath).toBe(join(binDir, 'cdock'))
+    await expect(readFile(join(binDir, 'cdock'), 'utf8')).resolves.toContain(
       `exec "${appPath}" --cli "$@"`
     )
   })
 
-  it('does not overwrite an unrelated ilc shim on PATH', async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'ilc-shim-'))
+  it('does not overwrite an unrelated cdock shim on PATH', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'cdock-shim-'))
     const binDir = join(tempDir, 'bin')
-    const shimPath = join(binDir, 'ilc')
+    const shimPath = join(binDir, 'cdock')
     await mkdir(binDir, { recursive: true })
     await writeFile(shimPath, '#!/bin/sh\necho foreign\n', 'utf8')
 
     const result = await installCliShim({
-      appPath: join(tempDir, 'Ilovecodex'),
+      appPath: join(tempDir, 'CodexDock'),
       isPackaged: true,
       platform: 'linux',
       homeDir: tempDir,

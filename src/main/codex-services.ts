@@ -244,7 +244,7 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
 
         return getSnapshot()
       },
-      exportToTemplate: async (accountIds, format = 'ilovecodex') => {
+      exportToTemplate: async (accountIds, format = 'codexdock') => {
         const accountsToExport = await resolveAccountsForExport(accountIds)
         const snapshot = await getSnapshot()
         const exportedAt = new Date().toISOString()

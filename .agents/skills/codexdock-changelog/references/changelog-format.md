@@ -1,4 +1,4 @@
-# ilovecodex Changelog Format
+# codexdock Changelog Format
 
 Use this reference when updating the repository root `CHANGELOG.md`.
 

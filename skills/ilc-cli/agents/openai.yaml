@@ -1,6 +1,0 @@
-interface:
-  display_name: "ILC CLI"
-  short_description: "Use the ilovecodex project CLI"
-  default_prompt: "Use $ilc-cli to explain, verify, or run the ilovecodex CLI in this repository."
-policy:
-  allow_implicit_invocation: true

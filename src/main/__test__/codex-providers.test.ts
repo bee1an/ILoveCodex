@@ -31,7 +31,7 @@ describe('CodexProviderStore', () => {
   })
 
   async function createStore(): Promise<{ directory: string; store: CodexProviderStore }> {
-    const directory = await mkdtemp(join(tmpdir(), 'ilovecodex-provider-store-'))
+    const directory = await mkdtemp(join(tmpdir(), 'codexdock-provider-store-'))
     createdDirectories.push(directory)
     return {
       directory,
@@ -103,7 +103,7 @@ describe('CodexProviderStore', () => {
   })
 
   it('rejects legacy safeStorage provider keys with a re-entry hint', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'ilovecodex-provider-store-'))
+    const directory = await mkdtemp(join(tmpdir(), 'codexdock-provider-store-'))
     createdDirectories.push(directory)
     await writeFile(
       join(directory, 'codex-providers.json'),

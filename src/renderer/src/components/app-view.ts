@@ -37,8 +37,8 @@ export const messages = {
     exportFormatDialogDescription: '导入会自动识别格式；导出时请选择目标工具兼容的 JSON 结构。',
     exportFormatTargetAll: '导出全部账号',
     exportFormatTargetSelected: (count: number) => `导出选中的 ${count} 个账号`,
-    exportFormatIlovecodex: 'ILoveCodex',
-    exportFormatIlovecodexDescription: '原生模板，保留完整额度与扩展字段。',
+    exportFormatCodexDock: 'CodexDock',
+    exportFormatCodexDockDescription: '原生模板，保留完整额度与扩展字段。',
     exportFormatCockpitTools: 'Cockpit Tools',
     exportFormatCockpitToolsDescription: '兼容 Cockpit Tools 的账号数组格式。',
     exportFormatSub2api: 'sub2api',
@@ -266,7 +266,7 @@ export const messages = {
         case 'waiting-for-app-quit':
           return 'Homebrew 已准备安装，正在关闭应用…'
         case 'brew-upgrade':
-          return `正在执行：${command ?? 'brew upgrade --cask ilovecodex'}`
+          return `正在执行：${command ?? 'brew upgrade --cask codexdock'}`
         case 'reopening':
           return '正在重新打开应用…'
         default:
@@ -321,8 +321,8 @@ export const messages = {
     exportFormatTargetAll: 'Export all accounts',
     exportFormatTargetSelected: (count: number) =>
       `Export ${count} selected account${count === 1 ? '' : 's'}`,
-    exportFormatIlovecodex: 'ILoveCodex',
-    exportFormatIlovecodexDescription:
+    exportFormatCodexDock: 'CodexDock',
+    exportFormatCodexDockDescription:
       'Native template with the full quota and extra metadata preserved.',
     exportFormatCockpitTools: 'Cockpit Tools',
     exportFormatCockpitToolsDescription: 'Compatible with the Cockpit Tools account array format.',
@@ -354,7 +354,7 @@ export const messages = {
     openMainPanel: 'Open main panel',
     waitingCallback: 'Waiting for authorization in the browser to call back to the local app.',
     waitingDeviceCode:
-      'Finish authorization in the browser and Ilovecodex will continue automatically.',
+      'Finish authorization in the browser and CodexDock will continue automatically.',
     statusBarAccountCount: (count: number) => `${count} menu bar account${count === 1 ? '' : 's'}`,
     noStatusBarAccounts: 'No account selected for the menu bar.',
     statusBarDisplayAccounts: 'Menu bar accounts',
@@ -559,7 +559,7 @@ export const messages = {
         case 'waiting-for-app-quit':
           return 'Homebrew is ready to install, closing the app…'
         case 'brew-upgrade':
-          return `Running: ${command ?? 'brew upgrade --cask ilovecodex'}`
+          return `Running: ${command ?? 'brew upgrade --cask codexdock'}`
         case 'reopening':
           return 'Reopening the app…'
         default:
@@ -593,7 +593,7 @@ export const messages = {
       'Best when you want to add another account and let the local callback finish automatically.',
     deviceLoginHint: 'Use device code',
     deviceLoginDetail:
-      'Best when you want to approve the login on another browser or device and let Ilovecodex poll automatically.'
+      'Best when you want to approve the login on another browser or device and let CodexDock poll automatically.'
   }
 } as const
 

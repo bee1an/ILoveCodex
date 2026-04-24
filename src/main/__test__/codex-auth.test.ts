@@ -58,7 +58,7 @@ describe('CodexAccountStore', () => {
   })
 
   async function createStore(): Promise<CodexAccountStore> {
-    const directory = await mkdtemp(join(tmpdir(), 'ilovecodex-store-'))
+    const directory = await mkdtemp(join(tmpdir(), 'codexdock-store-'))
     createdDirectories.push(directory)
     return new CodexAccountStore(directory, createPlatform())
   }
@@ -131,7 +131,7 @@ describe('CodexAccountStore', () => {
   })
 
   it('rejects legacy safeStorage accounts with a re-import hint', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'ilovecodex-store-'))
+    const directory = await mkdtemp(join(tmpdir(), 'codexdock-store-'))
     createdDirectories.push(directory)
     await writeFile(
       join(directory, 'codex-accounts.json'),
@@ -174,7 +174,7 @@ describe('CodexAccountStore', () => {
   })
 
   it('serializes concurrent state updates without dropping changes', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'ilovecodex-store-'))
+    const directory = await mkdtemp(join(tmpdir(), 'codexdock-store-'))
     createdDirectories.push(directory)
 
     const store = new CodexAccountStore(directory, createPlatform())

@@ -31,7 +31,7 @@ describe('readAccountRateLimits', () => {
           expect(init?.headers).toMatchObject({
             authorization: 'Bearer token',
             'chatgpt-account-id': 'acct_123',
-            'user-agent': 'ilovecodex'
+            'user-agent': 'codexdock'
           })
 
           return new Response(
@@ -222,7 +222,7 @@ describe('wakeAccountRateLimits', () => {
             expect(init?.headers).toMatchObject({
               authorization: 'Bearer token',
               'chatgpt-account-id': 'acct_123',
-              'user-agent': 'ilovecodex',
+              'user-agent': 'codexdock',
               originator: 'codex_cli_rs',
               'content-type': 'application/json'
             })

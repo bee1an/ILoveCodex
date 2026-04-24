@@ -123,7 +123,7 @@
   let exportDialogBusy = false
   let exportDialogError = ''
   let exportDialogAccountIds: string[] | null = null
-  let exportDialogFormat: AccountTransferFormat = 'ilovecodex'
+  let exportDialogFormat: AccountTransferFormat = 'codexdock'
   let wakeScheduleEnabledDraft = true
   let wakeScheduleTimesDraft: string[] = ['09:00']
   let wakeSchedulePromptDraft = 'ping'
@@ -169,9 +169,9 @@
         return copy.exportFormatSub2api
       case 'cliproxyapi':
         return copy.exportFormatCliProxyApi
-      case 'ilovecodex':
+      case 'codexdock':
       default:
-        return copy.exportFormatIlovecodex
+        return copy.exportFormatCodexDock
     }
   }
 
@@ -185,9 +185,9 @@
         return copy.exportFormatSub2apiDescription
       case 'cliproxyapi':
         return copy.exportFormatCliProxyApiDescription
-      case 'ilovecodex':
+      case 'codexdock':
       default:
-        return copy.exportFormatIlovecodexDescription
+        return copy.exportFormatCodexDockDescription
     }
   }
 
@@ -593,7 +593,7 @@
     showExportFormatDialog = false
     exportDialogError = ''
     exportDialogAccountIds = null
-    exportDialogFormat = 'ilovecodex'
+    exportDialogFormat = 'codexdock'
   }
 
   const openExportFormatDialog = (accountIds?: string[]): void => {
@@ -603,7 +603,7 @@
     }
 
     exportDialogAccountIds = uniqueIds
-    exportDialogFormat = 'ilovecodex'
+    exportDialogFormat = 'codexdock'
     exportDialogError = ''
     showExportFormatDialog = true
   }
@@ -627,7 +627,7 @@
       showExportFormatDialog = false
       exportDialogError = ''
       exportDialogAccountIds = null
-      exportDialogFormat = 'ilovecodex'
+      exportDialogFormat = 'codexdock'
     } catch (error) {
       exportDialogError = localizeKnownError(error, copyForLanguage().actionFailed)
     } finally {
@@ -1137,7 +1137,7 @@
 </script>
 
 <svelte:head>
-  <title>Ilovecodex</title>
+  <title>CodexDock</title>
 </svelte:head>
 
 <svelte:window on:keydown={handleGlobalKeydown} />

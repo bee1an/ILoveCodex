@@ -62,15 +62,15 @@ async function main() {
   const args = parseArgs(process.argv.slice(2))
   const output = requiredArg(args, 'output')
   const content = renderCask({
-    token: args.token?.trim() || 'ilovecodex',
+    token: args.token?.trim() || 'codexdock',
     version: requiredArg(args, 'version'),
     sha256: requiredArg(args, 'sha256'),
     url: requiredArg(args, 'url'),
-    name: args.name?.trim() || 'Ilovecodex',
+    name: args.name?.trim() || 'CodexDock',
     desc: args.desc?.trim() || 'Desktop account manager for Codex sessions',
-    homepage: args.homepage?.trim() || 'https://github.com/bee1an/ILoveCodex',
+    homepage: args.homepage?.trim() || 'https://github.com/bee1an/CodexDock',
     arch: args.arch?.trim() || 'arm64',
-    app: args.app?.trim() || 'Ilovecodex.app'
+    app: args.app?.trim() || 'CodexDock.app'
   })
 
   await mkdir(path.dirname(output), { recursive: true })

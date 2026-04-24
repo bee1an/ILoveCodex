@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+
+for candidate in \
+  "$SCRIPT_DIR/../../MacOS/CodexDock" \
+  "$SCRIPT_DIR/../../codexdock" \
+  "$SCRIPT_DIR/../../CodexDock" \
+  "$SCRIPT_DIR/../codexdock" \
+  "$SCRIPT_DIR/../CodexDock"
+do
+  if [ -x "$candidate" ]; then
+    exec "$candidate" --cli "$@"
+  fi
+done
+
+echo "Unable to locate the bundled CodexDock executable" >&2
+exit 3

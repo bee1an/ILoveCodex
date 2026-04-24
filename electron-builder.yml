@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: Ilovecodex
+appId: com.bee1an.codexdock
+productName: CodexDock
 directories:
   buildResources: build
 files:
@@ -18,7 +18,7 @@ extraResources:
     filter:
       - '**/*'
 win:
-  executableName: ilovecodex
+  executableName: codexdock
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -48,5 +48,5 @@ npmRebuild: false
 publish:
   provider: github
   owner: bee1an
-  repo: ILoveCodex
+  repo: CodexDock
   releaseType: release

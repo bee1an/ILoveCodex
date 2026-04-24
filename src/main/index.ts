@@ -72,8 +72,8 @@ let homebrewUpdateQuitCountdownStarted = false
 const defaultWorkspacePath = process.cwd()
 const isLocalEnvironment = !app.isPackaged
 const configuredUserDataPath = isLocalEnvironment
-  ? join(homedir(), '.config', 'ilovecodex-local')
-  : join(homedir(), '.config', 'ilovecodex')
+  ? join(homedir(), '.config', 'codexdock-local')
+  : join(homedir(), '.config', 'codexdock')
 function shouldUseLocalMockCodexHome(): boolean {
   if (!isLocalEnvironment) {
     return false
@@ -97,7 +97,7 @@ const configuredCodexHomePath = isLocalEnvironment
 app.setPath('userData', configuredUserDataPath)
 
 async function importRealLocalAccounts(services: CodexServices): Promise<void> {
-  const realAccountsStateFile = join(homedir(), '.config', 'ilovecodex', 'codex-accounts.json')
+  const realAccountsStateFile = join(homedir(), '.config', 'codexdock', 'codex-accounts.json')
   const realCodexAuthFile = join(homedir(), '.codex', 'auth.json')
 
   try {
@@ -428,7 +428,7 @@ function createTray(): void {
       : nativeImage.createFromPath(icon).resize({ width: 18, height: 18 })
 
   tray = new Tray(trayIcon)
-  tray.setToolTip('Ilovecodex')
+  tray.setToolTip('CodexDock')
 }
 
 // This method will be called when Electron has finished
@@ -440,9 +440,9 @@ app.whenReady().then(async () => {
     isPackaged: app.isPackaged
   })
   if (cliShim.status === 'installed' || cliShim.status === 'updated') {
-    console.info(`Installed ilc shim at ${cliShim.shimPath}`)
+    console.info(`Installed cdock shim at ${cliShim.shimPath}`)
   } else if (cliShim.reason === 'occupied') {
-    console.warn(`Skipped ilc shim install because ${cliShim.shimPath} is already occupied`)
+    console.warn(`Skipped cdock shim install because ${cliShim.shimPath} is already occupied`)
   }
 
   const cliArgs = extractCliArgs(process.argv)
@@ -510,12 +510,12 @@ app.whenReady().then(async () => {
     env: process.env,
     isHomebrewCaskInstalled: async () =>
       isHomebrewCaskInstalled({
-        caskToken: 'ilovecodex'
+        caskToken: 'codexdock'
       }),
     launchHomebrewUpdate: async () =>
       launchHomebrewCaskUpgrade({
         appName: app.getName(),
-        caskToken: 'ilovecodex',
+        caskToken: 'codexdock',
         executablePath: app.getPath('exe'),
         appPid: process.pid
       })
@@ -615,7 +615,7 @@ app.whenReady().then(async () => {
   })
   ipcMain.handle(
     'codex:export-accounts-to-file',
-    async (_, format: AccountTransferFormat = 'ilovecodex') => {
+    async (_, format: AccountTransferFormat = 'codexdock') => {
       const raw = await codexServices.accounts.exportToTemplate(undefined, format)
       await saveAccountsExport(raw, mainWindow, {
         defaultFilePrefix: exportFilePrefix(format)
@@ -625,7 +625,7 @@ app.whenReady().then(async () => {
   )
   ipcMain.handle(
     'codex:export-selected-accounts-to-file',
-    async (_, accountIds: string[], format: AccountTransferFormat = 'ilovecodex') => {
+    async (_, accountIds: string[], format: AccountTransferFormat = 'codexdock') => {
       const raw = await codexServices.accounts.exportToTemplate(accountIds, format)
       await saveAccountsExport(raw, mainWindow, {
         title: 'Export selected accounts',

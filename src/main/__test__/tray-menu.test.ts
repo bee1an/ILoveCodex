@@ -234,7 +234,7 @@ describe('tray menu helpers', () => {
         currentVersion: '0.2.4',
         availableVersion: '0.2.5',
         supported: true,
-        externalDownloadUrl: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.5'
+        externalDownloadUrl: 'https://github.com/bee1an/CodexDock/releases/tag/v0.2.5'
       } satisfies AppUpdateState,
       labels
     )

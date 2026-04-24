@@ -1,0 +1,6 @@
+interface:
+  display_name: "cdock CLI"
+  short_description: "Use the CodexDock project CLI"
+  default_prompt: "Use $cdock-cli to explain, verify, or run the cdock CLI in this repository."
+policy:
+  allow_implicit_invocation: true

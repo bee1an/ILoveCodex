@@ -1,5 +1,5 @@
 provider: github
 owner: bee1an
-repo: ILoveCodex
+repo: CodexDock
 releaseType: release
-updaterCacheDirName: ilovecodex-updater
+updaterCacheDirName: codexdock-updater

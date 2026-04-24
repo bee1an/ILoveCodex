@@ -197,7 +197,7 @@ export class CodexLoginCoordinator {
         if (error) {
           response.writeHead(400, { 'content-type': 'text/html; charset=utf-8' })
           response.end(
-            '<h1>Login failed</h1><p>You can close this window and return to Ilovecodex.</p>'
+            '<h1>Login failed</h1><p>You can close this window and return to CodexDock.</p>'
           )
           reject(new Error(`OpenAI login failed: ${error}`))
           return
@@ -212,7 +212,7 @@ export class CodexLoginCoordinator {
 
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
         response.end(
-          '<h1>Login complete</h1><p>You can close this tab and return to Ilovecodex.</p>'
+          '<h1>Login complete</h1><p>You can close this tab and return to CodexDock.</p>'
         )
 
         void this.finishBrowserLogin(attemptId, code, codeVerifier, abortController.signal)

@@ -1,10 +1,10 @@
-# Ilovecodex
+# CodexDock
 
 [中文](./README.zh-CN.md)
 
-Ilovecodex is a desktop account manager for Codex sessions. It provides a tray-friendly Electron app for switching accounts, checking usage, and launching Codex, and it also ships an `ilc` CLI for scripting the same workflows.
+CodexDock is a desktop account manager for Codex sessions. It provides a tray-friendly Electron app for switching accounts, checking usage, and launching Codex, and it also ships a `cdock` CLI for scripting the same workflows.
 
-![Ilovecodex screenshot](./docs/screenshot.png)
+![CodexDock screenshot](./docs/screenshot.png)
 
 ## What It Does
 
@@ -14,55 +14,55 @@ Ilovecodex is a desktop account manager for Codex sessions. It provides a tray-f
 - Read session and weekly usage limits for saved accounts
 - Launch the Codex desktop app with the selected account
 - Manage app settings such as polling interval, language, theme, and menu bar accounts
-- Provide the same core workflows through the `ilc` CLI
+- Provide the same core workflows through the `cdock` CLI
 
 ## App And CLI
 
 The project has two entrypoints:
 
 - Desktop app: Electron + Svelte UI for day-to-day account management
-- CLI: `ilc` for automation, inspection, and account operations
+- CLI: `cdock` for automation, inspection, and account operations
 
 Supported commands:
 
 ```text
-ilc account list
-ilc account import-current
-ilc account import [--file <path>]
-ilc account export [account-id...]
-ilc account activate <account-id>
-ilc account best
-ilc account remove <account-id>
-ilc instance list
-ilc instance create --name <name>
-ilc instance update <instance-id|default>
-ilc instance start <instance-id|default>
-ilc instance stop <instance-id|default>
-ilc instance remove <instance-id>
-ilc provider list
-ilc provider create
-ilc provider update <provider-id>
-ilc provider remove <provider-id>
-ilc provider check <provider-id>
-ilc provider open <provider-id>
-ilc tag list
-ilc tag create <name>
-ilc tag rename <tag-id> <name>
-ilc tag remove <tag-id>
-ilc tag assign <account-id> <tag-id>
-ilc tag unassign <account-id> <tag-id>
-ilc session current
-ilc usage read [account-id]
-ilc login browser
-ilc login device
-ilc login port status
-ilc login port kill
-ilc codex show
-ilc codex open [account-id]
-ilc codex open-isolated <account-id>
-ilc doctor
-ilc settings get [key]
-ilc settings set <key> <value>
+cdock account list
+cdock account import-current
+cdock account import [--file <path>]
+cdock account export [account-id...]
+cdock account activate <account-id>
+cdock account best
+cdock account remove <account-id>
+cdock instance list
+cdock instance create --name <name>
+cdock instance update <instance-id|default>
+cdock instance start <instance-id|default>
+cdock instance stop <instance-id|default>
+cdock instance remove <instance-id>
+cdock provider list
+cdock provider create
+cdock provider update <provider-id>
+cdock provider remove <provider-id>
+cdock provider check <provider-id>
+cdock provider open <provider-id>
+cdock tag list
+cdock tag create <name>
+cdock tag rename <tag-id> <name>
+cdock tag remove <tag-id>
+cdock tag assign <account-id> <tag-id>
+cdock tag unassign <account-id> <tag-id>
+cdock session current
+cdock usage read [account-id]
+cdock login browser
+cdock login device
+cdock login port status
+cdock login port kill
+cdock codex show
+cdock codex open [account-id]
+cdock codex open-isolated <account-id>
+cdock doctor
+cdock settings get [key]
+cdock settings set <key> <value>
 ```
 
 Global CLI options:
@@ -73,22 +73,22 @@ Global CLI options:
 - `--timeout <sec>`
 - `--help`
 
-Packaged app builds also ship `ilc` wrappers under `resources/bin/`. After an installed app starts once, it will try to install a user-level `ilc` shim into a writable `PATH` directory so `ilc ...` can be run directly from later shells.
+Packaged app builds also ship `cdock` wrappers under `resources/bin/`. After an installed app starts once, it will try to install a user-level `cdock` shim into a writable `PATH` directory so `cdock ...` can be run directly from later shells.
 
 ## Homebrew Tap (macOS)
 
 The macOS build can be distributed through a custom Homebrew tap:
 
 ```bash
-brew tap bee1an/ilovecodex
-brew install --cask ilovecodex
+brew tap bee1an/codexdock
+brew install --cask codexdock
 ```
 
 To upgrade later:
 
 ```bash
 brew update
-brew upgrade --cask ilovecodex
+brew upgrade --cask codexdock
 ```
 
 ### If macOS blocks the app on first launch
@@ -104,14 +104,14 @@ Recommended ways to allow the app:
 If you prefer the terminal and only want to allow this app, you can remove the quarantine attribute:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Ilovecodex.app"
-open "/Applications/Ilovecodex.app"
+xattr -dr com.apple.quarantine "/Applications/CodexDock.app"
+open "/Applications/CodexDock.app"
 ```
 
 You can inspect whether the quarantine attribute is present first:
 
 ```bash
-xattr -l "/Applications/Ilovecodex.app"
+xattr -l "/Applications/CodexDock.app"
 ```
 
 Avoid disabling Gatekeeper globally for this.

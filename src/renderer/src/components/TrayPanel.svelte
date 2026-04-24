@@ -29,17 +29,17 @@
 </script>
 
 <section
-  class="theme-tray-panel grid gap-3 overflow-hidden rounded-[1.05rem] border border-black/[0.08] bg-white/66 p-3.5 backdrop-blur-2xl"
+  class="theme-tray-panel grid gap-3 overflow-hidden rounded-[1.05rem] border border-black/[0.08] bg-white p-3.5"
 >
   <div class="flex items-center justify-between gap-3">
     <div class="flex min-w-0 items-center gap-2.5">
       <img
         src={brandMark}
         alt=""
-        class="h-9 w-9 flex-none rounded-[0.95rem] border border-black/[0.05] shadow-[0_10px_24px_rgba(24,24,27,0.08)]"
+        class="h-9 w-9 flex-none rounded-[0.95rem] border border-black/[0.05]"
       />
       <div class="min-w-0">
-        <p class="text-sm font-medium text-ink">Ilovecodex</p>
+        <p class="text-sm font-medium text-ink">CodexDock</p>
         <p class="text-xs text-faint">{copy.statusBarAccountCount(statusAccounts.length)}</p>
       </div>
     </div>
@@ -163,7 +163,7 @@
   <div class="flex items-center justify-between gap-3 border-t border-black/6 pt-3">
     <span class="text-xs text-muted-strong">{copy.pollingInterval}</span>
     <select
-      class="theme-select h-8 rounded-md border border-black/8 bg-white/88 px-2 text-sm text-ink outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/16"
+      class="theme-select h-8 rounded-md border border-black/8 bg-white px-2 text-sm text-ink outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/16"
       value={snapshot.settings.usagePollingMinutes}
       on:change={(event) =>
         updatePollingInterval(Number((event.currentTarget as HTMLSelectElement).value))}

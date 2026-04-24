@@ -57,7 +57,7 @@ export async function isHomebrewCaskInstalled(options?: {
   const exitCode = await waitForExitCode(brewBinary, [
     'list',
     '--cask',
-    options?.caskToken ?? 'ilovecodex'
+    options?.caskToken ?? 'codexdock'
   ])
   return exitCode === 0
 }
@@ -79,8 +79,8 @@ export async function launchHomebrewCaskUpgrade(options?: {
     throw new Error('Homebrew is not installed on this Mac.')
   }
 
-  const caskToken = options?.caskToken?.trim() || 'ilovecodex'
-  const appName = options?.appName?.trim() || 'Ilovecodex'
+  const caskToken = options?.caskToken?.trim() || 'codexdock'
+  const appName = options?.appName?.trim() || 'CodexDock'
   const appBundlePath =
     options?.appBundlePath?.trim() ||
     resolveAppBundlePath(options?.executablePath?.trim() || process.execPath)

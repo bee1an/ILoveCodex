@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "6c9821b5-8170-41f4-af32-1b537df3dc72",
-    "name": "Ilovecodex Upstream APIs",
-    "description": "Ilovecodex 当前实际调用的上游 HTTP 接口集合，可直接导入 Postman，也可被 Apifox 导入。当前已补齐真实成功返回中的 user_id、account_id、email、code_review_rate_limit、credits.approx_*、promo，以及已知错误 detail.code=deactivated_workspace。",
+    "name": "CodexDock Upstream APIs",
+    "description": "CodexDock 当前实际调用的上游 HTTP 接口集合，可直接导入 Postman，也可被 Apifox 导入。当前已补齐真实成功返回中的 user_id、account_id、email、code_review_rate_limit、credits.approx_*、promo，以及已知错误 detail.code=deactivated_workspace。",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -363,7 +363,7 @@
               },
               {
                 "key": "user-agent",
-                "value": "ilovecodex"
+                "value": "codexdock"
               }
             ],
             "description": "读取账号额度、plan、credits、code_review_rate_limit、additional_rate_limits 和 promo。当前已确认错误返回中可能出现 detail.code=deactivated_workspace。",
@@ -394,7 +394,7 @@
                   },
                   {
                     "key": "user-agent",
-                    "value": "ilovecodex"
+                    "value": "codexdock"
                   }
                 ],
                 "url": {
@@ -435,7 +435,7 @@
                   },
                   {
                     "key": "user-agent",
-                    "value": "ilovecodex"
+                    "value": "codexdock"
                   }
                 ],
                 "url": {

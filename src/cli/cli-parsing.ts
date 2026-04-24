@@ -30,7 +30,9 @@ const SETTING_KEYS: CliSettingsKey[] = [
   'checkForUpdatesOnStartup',
   'showLocalMockData',
   'codexDesktopExecutablePath',
-  'statsDisplay'
+  'statsDisplay',
+  'toolbarIconMovable',
+  'collapsedToolbarIconDefaultPosition'
 ]
 
 function parseStatsDisplay(rawValue: string): StatsDisplaySettings {
@@ -188,6 +190,16 @@ export function parseSettingsValue(
         throw new CliError('showLocalMockData must be true or false', EXIT_USAGE)
       }
       return rawValue === 'true'
+    case 'toolbarIconMovable':
+      if (rawValue !== 'true' && rawValue !== 'false') {
+        throw new CliError('toolbarIconMovable must be true or false', EXIT_USAGE)
+      }
+      return rawValue === 'true'
+    case 'collapsedToolbarIconDefaultPosition':
+      if (rawValue !== 'true' && rawValue !== 'false') {
+        throw new CliError('collapsedToolbarIconDefaultPosition must be true or false', EXIT_USAGE)
+      }
+      return rawValue === 'true'
     case 'codexDesktopExecutablePath':
       return rawValue.trim()
     case 'statsDisplay':
@@ -324,7 +336,7 @@ export function parseCostOptions(argv: string[]): CostReadOptions {
       throw new CliError(`Unknown option: ${arg}`, EXIT_USAGE)
     }
 
-    throw new CliError('Usage: ilc cost read [--refresh] [--json]', EXIT_USAGE)
+    throw new CliError('Usage: cdock cost read [--refresh] [--json]', EXIT_USAGE)
   }
 
   return options

@@ -9,7 +9,7 @@ export interface StatsDisplaySettings {
   instanceUsage: boolean
 }
 export const accountTransferFormats = [
-  'ilovecodex',
+  'codexdock',
   'cockpit_tools',
   'sub2api',
   'cliproxyapi'
@@ -25,6 +25,8 @@ export interface AppSettings {
   codexDesktopExecutablePath: string
   showLocalMockData?: boolean
   statsDisplay?: StatsDisplaySettings
+  toolbarIconMovable?: boolean
+  collapsedToolbarIconDefaultPosition?: boolean
 }
 
 export interface CustomProviderSummary {

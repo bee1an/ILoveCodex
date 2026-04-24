@@ -16,47 +16,47 @@ import type {
 import { serializeStatsDisplaySettings } from '../shared/codex'
 
 export function printHelp(): void {
-  console.log(`ilc
+  console.log(`cdock
 
 Usage:
-  ilc account list [--json]
-  ilc account import-current [--json]
-  ilc account import [--file <path>] [--json]
-  ilc account export [account-id...] [--file <path>] [--json]
-  ilc account activate <account-id> [--json]
-  ilc account best [--json]
-  ilc account remove <account-id> [--json]
-  ilc provider list [--json]
-  ilc provider create --base-url <url> --api-key <key> [--name <name>] [--model <model>] [--fast <true|false>] [--json]
-  ilc provider update <provider-id> [--name <name>] [--base-url <url>] [--api-key <key>] [--model <model>] [--fast <true|false>] [--json]
-  ilc provider remove <provider-id> [--json]
-  ilc provider check <provider-id> [--json]
-  ilc provider open <provider-id> [--json]
-  ilc instance list [--json]
-  ilc instance create --name <name> [--codex-home <path>] [--account <account-id>] [--extra-args <args>] [--json]
-  ilc instance update <instance-id|default> [--name <name>] [--account <account-id|->] [--extra-args <args>] [--unbind-account] [--json]
-  ilc instance start <instance-id|default> [--workspace <path>] [--json]
-  ilc instance stop <instance-id|default> [--json]
-  ilc instance remove <instance-id> [--json]
-  ilc tag list [--json]
-  ilc tag create <name> [--json]
-  ilc tag rename <tag-id> <name> [--json]
-  ilc tag remove <tag-id> [--json]
-  ilc tag assign <account-id> <tag-id> [--json]
-  ilc tag unassign <account-id> <tag-id> [--json]
-  ilc session current [--json]
-  ilc usage read [account-id] [--json]
-  ilc cost read [--refresh] [--json]
-  ilc login browser [--json] [--no-open] [--timeout <sec>]
-  ilc login device [--json] [--timeout <sec>]
-  ilc login port status [--json]
-  ilc login port kill [--json]
-  ilc codex show [--json]
-  ilc codex open [account-id] [--json]
-  ilc codex open-isolated <account-id> [--json]
-  ilc doctor [--json]
-  ilc settings get [key] [--json]
-  ilc settings set <key> <value> [--json]
+  cdock account list [--json]
+  cdock account import-current [--json]
+  cdock account import [--file <path>] [--json]
+  cdock account export [account-id...] [--file <path>] [--json]
+  cdock account activate <account-id> [--json]
+  cdock account best [--json]
+  cdock account remove <account-id> [--json]
+  cdock provider list [--json]
+  cdock provider create --base-url <url> --api-key <key> [--name <name>] [--model <model>] [--fast <true|false>] [--json]
+  cdock provider update <provider-id> [--name <name>] [--base-url <url>] [--api-key <key>] [--model <model>] [--fast <true|false>] [--json]
+  cdock provider remove <provider-id> [--json]
+  cdock provider check <provider-id> [--json]
+  cdock provider open <provider-id> [--json]
+  cdock instance list [--json]
+  cdock instance create --name <name> [--codex-home <path>] [--account <account-id>] [--extra-args <args>] [--json]
+  cdock instance update <instance-id|default> [--name <name>] [--account <account-id|->] [--extra-args <args>] [--unbind-account] [--json]
+  cdock instance start <instance-id|default> [--workspace <path>] [--json]
+  cdock instance stop <instance-id|default> [--json]
+  cdock instance remove <instance-id> [--json]
+  cdock tag list [--json]
+  cdock tag create <name> [--json]
+  cdock tag rename <tag-id> <name> [--json]
+  cdock tag remove <tag-id> [--json]
+  cdock tag assign <account-id> <tag-id> [--json]
+  cdock tag unassign <account-id> <tag-id> [--json]
+  cdock session current [--json]
+  cdock usage read [account-id] [--json]
+  cdock cost read [--refresh] [--json]
+  cdock login browser [--json] [--no-open] [--timeout <sec>]
+  cdock login device [--json] [--timeout <sec>]
+  cdock login port status [--json]
+  cdock login port kill [--json]
+  cdock codex show [--json]
+  cdock codex open [account-id] [--json]
+  cdock codex open-isolated <account-id> [--json]
+  cdock doctor [--json]
+  cdock settings get [key] [--json]
+  cdock settings set <key> <value> [--json]
 
 Global options:
   --json        Output { ok, data, error }
@@ -316,6 +316,10 @@ export function printSettings(settings: AppSettings, quiet: boolean): void {
   console.log(`codexDesktopExecutablePath=${settings.codexDesktopExecutablePath}`)
   console.log(`showLocalMockData=${settings.showLocalMockData !== false}`)
   console.log(`statsDisplay=${serializeStatsDisplaySettings(settings.statsDisplay)}`)
+  console.log(`toolbarIconMovable=${settings.toolbarIconMovable !== false}`)
+  console.log(
+    `collapsedToolbarIconDefaultPosition=${settings.collapsedToolbarIconDefaultPosition !== false}`
+  )
 }
 
 export function formatSettingsValue(key: keyof AppSettings, settings: AppSettings): string {
@@ -326,6 +330,14 @@ export function formatSettingsValue(key: keyof AppSettings, settings: AppSetting
   }
 
   if (key === 'showLocalMockData') {
+    return String(value !== false)
+  }
+
+  if (key === 'toolbarIconMovable') {
+    return String(value !== false)
+  }
+
+  if (key === 'collapsedToolbarIconDefaultPosition') {
     return String(value !== false)
   }
 

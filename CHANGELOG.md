@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.6 - 2026-04-24
+
+This patch release renames the project to CodexDock and switches the command-line entrypoint to `cdock`.
+
+- Renamed the desktop product, package metadata, updater configuration, release workflow, and Homebrew cask defaults from Ilovecodex to CodexDock.
+- Replaced the installed CLI shim and packaged wrapper command with `cdock` while keeping the app bundle executable under the CodexDock name.
+- Updated documentation, helper skills, account export labels, default config paths, and tests to use the new CodexDock branding consistently.
+
 ## 0.3.5 - 2026-04-23
 
 This patch release restores packaged desktop account visibility after the local mock-data controls added in 0.3.4.
@@ -14,7 +22,7 @@ This patch release restores packaged desktop account visibility after the local 
 
 This patch release improves local account diagnostics, mock-data controls, and usage visibility across the desktop app and CLI.
 
-- Added token cost stats in the desktop account panel and `ilc cost read`, with refresh and JSON output support for CLI workflows.
+- Added token cost stats in the desktop account panel and `cdock cost read`, with refresh and JSON output support for CLI workflows.
 - Improved local development data handling with a mock-data toggle that cleanly separates mock accounts from imported real local accounts.
 - Expanded local mock accounts with richer quota, provider, tag, and refresh-error scenarios while removing the unsupported business-plan mock profile.
 - Refined account-list quota layout, free-plan weekly-only display, wake-time presentation, and one-line refresh errors with a fixed-height detail popover.
@@ -25,7 +33,7 @@ This patch release improves local account diagnostics, mock-data controls, and u
 This patch release adds wake-session automation, broadens account transfer compatibility, and smooths macOS delivery for desktop users.
 
 - Added a dedicated Wake center with one-shot session wake requests, per-account scheduled wake times, runtime status, and automatic retry or skip handling in the desktop app.
-- Expanded account import and export compatibility with Cockpit Tools, sub2api, and CLIProxyAPI formats while keeping the native ilovecodex template available for backup and migration.
+- Expanded account import and export compatibility with Cockpit Tools, sub2api, and CLIProxyAPI formats while keeping the native codexdock template available for backup and migration.
 - Refactored large main-process and CLI modules into smaller focused helpers and runtimes so desktop and CLI behavior stay aligned while the codebase becomes easier to maintain.
 - Improved Homebrew-oriented release delivery by wiring desktop update actions into the cask workflow and documenting how to open unsigned macOS builds through Gatekeeper safely.
 - Fixed wake-flow edge cases so concurrent wake requests report skipped runs correctly, scheduled wakes wait for known supported quota data, and local `--cli` runs no longer seed mock accounts during development.
@@ -46,7 +54,7 @@ This patch release expands day-to-day Codex session management with steadier aut
 This patch release hardens desktop account storage, streamlines import and export, and refines bulk account management in the main app.
 
 - Added multi-select account actions in the desktop account list so filtered accounts can be exported or removed in bulk.
-- Simplified the desktop account template format, aligned import validation with the exported schema, and renamed exported files to the `ilovecodex-accounts-*.json` pattern.
+- Simplified the desktop account template format, aligned import validation with the exported schema, and renamed exported files to the `codexdock-accounts-*.json` pattern.
 - Fixed saved account state corruption risks by serializing account-store writes, switching to atomic state-file replacement, and recovering from the backup file when the primary JSON is unreadable.
 - Improved account list layout and dark-theme behavior so tag filters, bulk-selection controls, and provider rows read more clearly with denser spacing and steadier contrast.
 - Refactored shared OpenAI auth parsing and desktop launcher/template modules to reduce duplication while keeping desktop behavior aligned across account, provider, and CLI entry points.
@@ -119,7 +127,7 @@ This release expands account management across both the desktop app and CLI.
 - Added drag-and-drop account sorting with persisted order in the desktop account list.
 - Added tag management for accounts, including create, rename, delete, assignment, and tag-based filtering in the desktop app.
 - Improved the account list UI with a dedicated tag manager view, compact usage display, better multilingual copy, and refined light and dark theme behavior.
-- Added `ilc tag` commands so tags can be listed, created, renamed, removed, assigned, and unassigned from the CLI.
+- Added `cdock tag` commands so tags can be listed, created, renamed, removed, assigned, and unassigned from the CLI.
 - Fixed menu bar account switching and list behavior so stored accounts remain easier to manage from the tray.
 
 ## 0.1.0 - 2026-03-08
@@ -128,5 +136,5 @@ Initial public release.
 
 - Added desktop account management for Codex sessions with import, activation, best-account switching, removal, and usage polling.
 - Added browser and device login flows, local callback port management, and Codex launch integration.
-- Added the `ilc` CLI for account, session, usage, login, settings, and Codex commands with JSON output support.
-- Added a project-local `skills/ilc-cli` skill so other agents can learn and verify the repository CLI workflow.
+- Added the `cdock` CLI for account, session, usage, login, settings, and Codex commands with JSON output support.
+- Added a project-local `skills/cdock-cli` skill so other agents can learn and verify the repository CLI workflow.

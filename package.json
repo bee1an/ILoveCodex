@@ -1,13 +1,13 @@
 {
-  "name": "ilovecodex",
-  "version": "0.3.5",
-  "description": "Ilovecodex desktop account manager for Codex sessions",
+  "name": "codexdock",
+  "version": "0.3.6",
+  "description": "CodexDock desktop account manager for Codex sessions",
   "main": "./out/main/index.js",
   "author": "bee1an",
-  "homepage": "https://github.com/bee1an/ILoveCodex",
+  "homepage": "https://github.com/bee1an/CodexDock",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bee1an/ILoveCodex.git"
+    "url": "https://github.com/bee1an/CodexDock.git"
   },
   "scripts": {
     "format": "prettier --plugin prettier-plugin-svelte --write .",
@@ -21,7 +21,7 @@
     "build:cli": "tsc -p tsconfig.cli.json",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
-    "ilc": "npm run build:cli && electron ./out/cli/cli/index.js",
+    "cdock": "npm run build:cli && electron ./out/cli/cli/index.js",
     "build": "npm run typecheck && npm run build:cli && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",

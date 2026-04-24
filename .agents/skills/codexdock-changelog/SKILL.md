@@ -1,16 +1,16 @@
 ---
-name: ilc-changelog
-description: Write and update the ilovecodex repository changelog in CHANGELOG.md using package.json version, Git tags, and Git history. Use when asked to write changelog, update release notes, summarize changes from the previous tag to the current commit, or generate a new release section for this repository from Git changes, including requests such as “写 changelog”, “更新发布日志”, or “根据 tag 到当前提交生成版本说明”.
+name: codexdock-changelog
+description: Write and update the codexdock repository changelog in CHANGELOG.md using package.json version, Git tags, and Git history. Use when asked to write changelog, update release notes, summarize changes from the previous tag to the current commit, or generate a new release section for this repository from Git changes, including requests such as “写 changelog”, “更新发布日志”, or “根据 tag 到当前提交生成版本说明”.
 ---
 
-# ILC Changelog
+# CodexDock Changelog
 
-This skill is only for the `ilovecodex` repository. It writes the root `CHANGELOG.md` and defaults to summarizing changes from the previous release tag to the current commit.
+This skill is only for the `codexdock` repository. It writes the root `CHANGELOG.md` and defaults to summarizing changes from the previous release tag to the current commit.
 
 ## Workflow
 
 1. Assume the working directory is the repository root.
-2. Run `python3 skills/ilc-changelog/scripts/collect_release_context.py --json` first.
+2. Run `python3 .agents/skills/codexdock-changelog/scripts/collect_release_context.py --json` first.
 3. Read `references/changelog-format.md` before drafting or editing the changelog.
 4. Inspect the current `CHANGELOG.md` so the new section is inserted below the intro, not appended to the bottom.
 5. Draft one new release section with the current `package.json` version and today's date.

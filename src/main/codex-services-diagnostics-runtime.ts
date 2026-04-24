@@ -193,7 +193,7 @@ export function createCodexServicesDiagnosticsRuntime(
         makeHealthCheck(
           'current-session',
           'warn',
-          'Current global Codex session is not imported into Ilovecodex.'
+          'Current global Codex session is not imported into CodexDock.'
         )
       )
     } else {

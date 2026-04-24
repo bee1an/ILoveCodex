@@ -335,9 +335,9 @@ function serializeJson(value: unknown): string {
 export function serializeAccountExport(
   sources: AccountExportSource[],
   exportedAt: string,
-  format: AccountTransferFormat = 'ilovecodex'
+  format: AccountTransferFormat = 'codexdock'
 ): string {
-  if (format === 'ilovecodex') {
+  if (format === 'codexdock') {
     return serializeJson({
       exported_at: exportedAt,
       proxies: [],

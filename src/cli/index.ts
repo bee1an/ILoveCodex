@@ -7,7 +7,7 @@ import { createElectronCodexPlatformAdapter } from '../main/electron-platform'
 import { createCodexServices } from '../main/codex-services'
 import type { LoginEvent } from '../shared/codex'
 
-const configuredUserDataPath = join(homedir(), '.config', 'ilovecodex')
+const configuredUserDataPath = join(homedir(), '.config', 'codexdock')
 
 async function main(): Promise<void> {
   app.setPath('userData', configuredUserDataPath)

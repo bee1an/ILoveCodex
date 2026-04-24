@@ -105,7 +105,7 @@ jobs:
         id: tap
         shell: bash
         run: |
-          repository="${HOMEBREW_TAP_REPOSITORY:-bee1an/homebrew-ilovecodex}"
+          repository="${HOMEBREW_TAP_REPOSITORY:-bee1an/homebrew-codexdock}"
           echo "repository=$repository" >> "$GITHUB_OUTPUT"
 
           if [ -n "${HOMEBREW_TAP_TOKEN:-}" ]; then
@@ -123,7 +123,7 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}
         run: |
           mkdir -p .release-assets
-          gh release download "$TAG_NAME" --pattern "ilovecodex-*.dmg" --dir .release-assets
+          gh release download "$TAG_NAME" --pattern "codexdock-*.dmg" --dir .release-assets
 
           asset_path="$(find .release-assets -maxdepth 1 -type f -name '*.dmg' | head -n1)"
           if [ -z "$asset_path" ]; then
@@ -161,7 +161,7 @@ jobs:
             --version "$VERSION" \
             --sha256 "$DMG_SHA256" \
             --url "$URL" \
-            --output ".homebrew-tap/Casks/ilovecodex.rb"
+            --output ".homebrew-tap/Casks/codexdock.rb"
 
       - name: Commit and push Homebrew cask update
         if: steps.tap.outputs.enabled == 'true'
@@ -170,7 +170,7 @@ jobs:
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          if git diff --quiet -- Casks/ilovecodex.rb; then
+          if git diff --quiet -- Casks/codexdock.rb; then
             echo "Homebrew cask is already up to date."
             exit 0
           fi
@@ -178,6 +178,6 @@ jobs:
           VERSION="${TAG_NAME#v}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Casks/ilovecodex.rb
-          git commit -m "Update ilovecodex to ${VERSION}"
+          git add Casks/codexdock.rb
+          git commit -m "Update codexdock to ${VERSION}"
           git push origin HEAD

@@ -219,7 +219,7 @@ def format_text(payload: dict[str, object]) -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description='Collect ilovecodex release context from Git for changelog writing.'
+        description='Collect codexdock release context from Git for changelog writing.'
     )
     parser.add_argument('--from-tag', help='Explicit start tag for the release range')
     parser.add_argument('--to-ref', help='Target ref for the release range', default='HEAD')

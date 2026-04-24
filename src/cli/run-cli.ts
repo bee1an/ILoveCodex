@@ -87,7 +87,7 @@ async function execute(
         case 'import': {
           const { filePath, positionals } = parseFileOption(rest)
           if (positionals.length) {
-            throw new CliError('Usage: ilc account import [--file <path>]', EXIT_USAGE)
+            throw new CliError('Usage: cdock account import [--file <path>]', EXIT_USAGE)
           }
 
           const raw =
@@ -96,7 +96,7 @@ async function execute(
               : process.stdin.isTTY
                 ? (() => {
                     throw new CliError(
-                      'Usage: ilc account import [--file <path>] or pipe JSON via stdin',
+                      'Usage: cdock account import [--file <path>] or pipe JSON via stdin',
                       EXIT_USAGE
                     )
                   })()
@@ -168,7 +168,7 @@ async function execute(
           const { input } = parseProviderOptions(rest)
           if (!input.baseUrl || !input.apiKey) {
             throw new CliError(
-              'Usage: ilc provider create --base-url <url> --api-key <key>',
+              'Usage: cdock provider create --base-url <url> --api-key <key>',
               EXIT_USAGE
             )
           }
@@ -261,7 +261,7 @@ async function execute(
           const { input, positionals } = parseInstanceOptions(rest)
           if (positionals.length) {
             throw new CliError(
-              'Usage: ilc instance create --name <name> [--codex-home <path>] [--account <account-id>] [--extra-args <args>]',
+              'Usage: cdock instance create --name <name> [--codex-home <path>] [--account <account-id>] [--extra-args <args>]',
               EXIT_USAGE
             )
           }
@@ -348,7 +348,7 @@ async function execute(
             throw new CliError('Missing instance-id', EXIT_USAGE)
           }
           if (rest.length > 1) {
-            throw new CliError('Usage: ilc instance stop <instance-id|default>', EXIT_USAGE)
+            throw new CliError('Usage: cdock instance stop <instance-id|default>', EXIT_USAGE)
           }
 
           const instance = await runtime.services.codex.instances.stop(
@@ -363,7 +363,7 @@ async function execute(
             throw new CliError('Missing instance-id', EXIT_USAGE)
           }
           if (rest.length > 1) {
-            throw new CliError('Usage: ilc instance remove <instance-id>', EXIT_USAGE)
+            throw new CliError('Usage: cdock instance remove <instance-id>', EXIT_USAGE)
           }
 
           const instanceId = normalizeInstanceId(rawInstanceId)
@@ -609,7 +609,7 @@ async function execute(
           const key = rest[0]
           const rawValue = rest[1]
           if (!key || rawValue == null) {
-            throw new CliError('Usage: ilc settings set <key> <value>', EXIT_USAGE)
+            throw new CliError('Usage: cdock settings set <key> <value>', EXIT_USAGE)
           }
 
           const settingKey = ensureSettingsKey(key)

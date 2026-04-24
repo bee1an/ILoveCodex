@@ -69,7 +69,7 @@ describe('app updater service', () => {
         new Response(
           JSON.stringify({
             tag_name: 'v0.2.2',
-            html_url: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.2'
+            html_url: 'https://github.com/bee1an/CodexDock/releases/tag/v0.2.2'
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
@@ -79,7 +79,7 @@ describe('app updater service', () => {
       initialSettings: createSettings(),
       isPackaged: true,
       platform: 'darwin',
-      githubUrl: 'https://github.com/bee1an/ILoveCodex',
+      githubUrl: 'https://github.com/bee1an/CodexDock',
       fetchImpl,
       initialCheckDelayMs: 1_000,
       checkIntervalMs: 5_000
@@ -109,7 +109,7 @@ describe('app updater service', () => {
       initialSettings: createSettings(),
       isPackaged: true,
       platform: 'darwin',
-      githubUrl: 'https://github.com/bee1an/ILoveCodex',
+      githubUrl: 'https://github.com/bee1an/CodexDock',
       fetchImpl,
       initialCheckDelayMs: 1_000,
       checkIntervalMs: 5_000
@@ -130,7 +130,7 @@ describe('app updater service', () => {
     })
     updater.downloadUpdate.mockImplementation(async () => {
       updater.emit('download-progress', { percent: 42 })
-      updater.emit('update-downloaded', { version: '0.2.2', downloadedFile: '/tmp/ilovecodex.dmg' })
+      updater.emit('update-downloaded', { version: '0.2.2', downloadedFile: '/tmp/codexdock.dmg' })
     })
 
     const service = createAppUpdaterService({
@@ -166,7 +166,7 @@ describe('app updater service', () => {
         new Response(
           JSON.stringify({
             tag_name: 'v0.2.1',
-            html_url: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.1'
+            html_url: 'https://github.com/bee1an/CodexDock/releases/tag/v0.2.1'
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
@@ -176,7 +176,7 @@ describe('app updater service', () => {
       initialSettings: createSettings(),
       isPackaged: true,
       platform: 'darwin',
-      githubUrl: 'https://github.com/bee1an/ILoveCodex',
+      githubUrl: 'https://github.com/bee1an/CodexDock',
       fetchImpl
     })
 
@@ -193,7 +193,7 @@ describe('app updater service', () => {
         new Response(
           JSON.stringify({
             tag_name: 'v0.2.5',
-            html_url: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.5'
+            html_url: 'https://github.com/bee1an/CodexDock/releases/tag/v0.2.5'
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
@@ -203,7 +203,7 @@ describe('app updater service', () => {
       initialSettings: createSettings(),
       isPackaged: true,
       platform: 'darwin',
-      githubUrl: 'https://github.com/bee1an/ILoveCodex',
+      githubUrl: 'https://github.com/bee1an/CodexDock',
       fetchImpl
     })
 
@@ -213,7 +213,7 @@ describe('app updater service', () => {
       delivery: 'external',
       availableVersion: '0.2.5',
       externalAction: 'release',
-      externalDownloadUrl: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.5'
+      externalDownloadUrl: 'https://github.com/bee1an/CodexDock/releases/tag/v0.2.5'
     })
   })
 
@@ -223,7 +223,7 @@ describe('app updater service', () => {
         new Response(
           JSON.stringify({
             tag_name: 'v0.2.5',
-            html_url: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.5'
+            html_url: 'https://github.com/bee1an/CodexDock/releases/tag/v0.2.5'
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
@@ -234,7 +234,7 @@ describe('app updater service', () => {
       initialSettings: createSettings(),
       isPackaged: true,
       platform: 'darwin',
-      githubUrl: 'https://github.com/bee1an/ILoveCodex',
+      githubUrl: 'https://github.com/bee1an/CodexDock',
       fetchImpl,
       isHomebrewCaskInstalled: async () => true,
       launchHomebrewUpdate
@@ -257,7 +257,7 @@ describe('app updater service', () => {
   })
 
   it('exposes Homebrew command status while updating', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'ilc-updater-test-'))
+    const dir = await mkdtemp(join(tmpdir(), 'codexdock-updater-test-'))
     tempDirs.push(dir)
     const statusFilePath = join(dir, 'homebrew.status')
     const logFilePath = join(dir, 'homebrew.log')
@@ -266,7 +266,7 @@ describe('app updater service', () => {
         new Response(
           JSON.stringify({
             tag_name: 'v0.2.5',
-            html_url: 'https://github.com/bee1an/ILoveCodex/releases/tag/v0.2.5'
+            html_url: 'https://github.com/bee1an/CodexDock/releases/tag/v0.2.5'
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
@@ -293,7 +293,7 @@ describe('app updater service', () => {
       initialSettings: createSettings(),
       isPackaged: true,
       platform: 'darwin',
-      githubUrl: 'https://github.com/bee1an/ILoveCodex',
+      githubUrl: 'https://github.com/bee1an/CodexDock',
       fetchImpl,
       isHomebrewCaskInstalled: async () => true,
       launchHomebrewUpdate
@@ -393,7 +393,7 @@ describe('app updater service', () => {
       updater.emit('update-available', { version: '0.2.2' })
     })
     updater.downloadUpdate.mockImplementation(async () => {
-      updater.emit('update-downloaded', { version: '0.2.2', downloadedFile: '/tmp/ilovecodex.exe' })
+      updater.emit('update-downloaded', { version: '0.2.2', downloadedFile: '/tmp/codexdock.exe' })
     })
 
     const service = createAppUpdaterService({

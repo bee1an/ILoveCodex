@@ -273,7 +273,7 @@
     <div class="min-w-0 flex flex-1 items-center gap-3">
       <div class="min-w-0 grid gap-0.5">
         <div class="min-w-0 flex items-center gap-2">
-          <span class="text-[13px] font-semibold tracking-[0.04em] text-ink/80">ILoveCodex</span>
+          <span class="text-[13px] font-semibold tracking-[0.04em] text-ink/80">CodexDock</span>
           <span
             class="theme-version-pill inline-flex items-center rounded-md bg-black/[0.05] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-strong"
           >

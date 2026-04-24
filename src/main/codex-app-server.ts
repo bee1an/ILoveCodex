@@ -407,7 +407,7 @@ function buildCodexAuthHeaders(
   return {
     authorization: `Bearer ${accessToken}`,
     'chatgpt-account-id': chatgptAccountId,
-    'user-agent': 'ilovecodex',
+    'user-agent': 'codexdock',
     originator: 'codex_cli_rs'
   }
 }

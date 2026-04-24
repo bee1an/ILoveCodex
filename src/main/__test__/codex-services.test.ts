@@ -363,7 +363,7 @@ describe('createCodexServices', () => {
     workspacePath: string
     globalAuthPath: string
   }> {
-    const directory = await mkdtemp(join(tmpdir(), 'ilovecodex-services-'))
+    const directory = await mkdtemp(join(tmpdir(), 'codexdock-services-'))
     createdDirectories.push(directory)
 
     originalHome = process.env.HOME
