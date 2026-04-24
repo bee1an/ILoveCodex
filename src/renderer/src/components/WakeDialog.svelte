@@ -7,6 +7,7 @@
     WakeAccountRequestResult
   } from '../../../shared/codex'
   import type { LocalizedCopy } from './app-view'
+  import Checkbox from './Checkbox.svelte'
   import { cascadeIn, reveal } from './gsap-motion'
   import { formatWakeScheduleLastTriggeredAt, nextWakeScheduleLabel } from './wake-schedule'
 
@@ -122,11 +123,11 @@
 </script>
 
 <div
-  class="wake-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-sm"
+  class="wake-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
   use:reveal={{ y: 0, scale: 1, blur: 0, duration: 0.18 }}
 >
   <div
-    class="theme-surface wake-dialog-panel flex w-full max-w-4xl flex-col overflow-hidden rounded-[1.25rem] border border-black/8 bg-white p-6 shadow-[0_32px_120px_rgba(0,0,0,0.12)] md:p-8"
+    class="theme-surface wake-dialog-panel flex w-full max-w-4xl flex-col overflow-hidden rounded-[0.65rem] border border-black/8 bg-white p-4 md:p-5"
     use:reveal={{ delay: 0.05 }}
     use:cascadeIn={{
       selector: '[data-wake-motion]'
@@ -135,26 +136,26 @@
     aria-modal="true"
     aria-labelledby="wake-dialog-title"
   >
-    <div class="grid gap-6 md:gap-7">
-      <div class="grid gap-1.5" data-wake-motion>
-        <p id="wake-dialog-title" class="text-lg font-semibold tracking-tight text-ink">
+    <div class="grid gap-4">
+      <div class="wake-dialog-heading grid gap-1" data-wake-motion>
+        <p id="wake-dialog-title" class="text-base font-semibold tracking-[-0.015em] text-ink">
           {copy.wakeDialogTitle}
         </p>
-        <p class="text-sm text-muted-strong">
+        <p class="max-w-3xl text-xs leading-5 text-muted-strong">
           {copy.wakeDialogDescription}
         </p>
-        <p class="mt-0.5 text-xs text-faint">{accountLabelText}</p>
+        <p class="text-[11px] leading-4 text-faint">{accountLabelText}</p>
       </div>
 
       <div
-        class="inline-flex w-fit items-center gap-1.5 rounded-[0.85rem] border border-black/5 bg-black/[0.02] p-1 shadow-inner"
+        class="wake-tab-list inline-flex w-fit items-center gap-1 rounded-[0.45rem] border border-black/5 bg-transparent p-0.5"
         data-wake-motion
       >
         <button
-          class={`wake-tab-button inline-flex items-center gap-2 rounded-[0.6rem] px-4 py-2 text-sm font-medium transition-colors duration-150 ${
+          class={`wake-tab-button inline-flex items-center gap-1.5 rounded-[0.35rem] px-3 py-1.5 text-xs font-medium transition-colors duration-150 ${
             activeTab === 'session'
-              ? 'bg-white text-ink shadow-[0_1px_2px_rgba(15,23,42,0.06)]'
-              : 'bg-transparent text-black/58 hover:bg-black/[0.04] hover:text-ink'
+              ? 'bg-[var(--panel-strong)] text-ink'
+              : 'bg-transparent text-black/58 hover:bg-[var(--surface-hover)] hover:text-ink'
           }`}
           type="button"
           onclick={() => {
@@ -165,14 +166,14 @@
           disabled={dialogBusy()}
           aria-pressed={activeTab === 'session'}
         >
-          <span class="i-lucide-zap h-4 w-4"></span>
+          <span class="i-lucide-zap h-3.5 w-3.5"></span>
           <span>{copy.wakeQuota}</span>
         </button>
         <button
-          class={`wake-tab-button inline-flex items-center gap-2 rounded-[0.6rem] px-4 py-2 text-sm font-medium transition-colors duration-150 ${
+          class={`wake-tab-button inline-flex items-center gap-1.5 rounded-[0.35rem] px-3 py-1.5 text-xs font-medium transition-colors duration-150 ${
             activeTab === 'schedule'
-              ? 'bg-white text-ink shadow-[0_1px_2px_rgba(15,23,42,0.06)]'
-              : 'bg-transparent text-black/58 hover:bg-black/[0.04] hover:text-ink'
+              ? 'bg-[var(--panel-strong)] text-ink'
+              : 'bg-transparent text-black/58 hover:bg-[var(--surface-hover)] hover:text-ink'
           }`}
           type="button"
           onclick={() => {
@@ -183,7 +184,7 @@
           disabled={dialogBusy()}
           aria-pressed={activeTab === 'schedule'}
         >
-          <span class="i-lucide-calendar-clock h-4 w-4"></span>
+          <span class="i-lucide-calendar-clock h-3.5 w-3.5"></span>
           <span>{copy.wakeSchedule}</span>
         </button>
       </div>
@@ -196,7 +197,7 @@
               <p class="text-xs text-muted-strong">{copy.wakeQuotaDialogDescription}</p>
             </div>
             <span
-              class={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${statusToneClass(sessionStatus)}`}
+              class={`inline-flex items-center rounded-[0.35rem] px-2.5 py-1 text-[11px] font-medium ${statusToneClass(sessionStatus)}`}
             >
               {sessionStatusLabel(sessionStatus)}
             </span>
@@ -209,7 +210,7 @@
                   {copy.wakeQuotaPromptLabel}
                 </span>
                 <textarea
-                  class="theme-select wake-dialog-field min-h-28 rounded-[0.85rem] border border-black/8 bg-black/[0.02] px-3.5 py-3 text-sm text-ink shadow-[0_1px_2px_rgba(0,0,0,0.02)_inset] outline-none transition hover:bg-black/[0.04] focus-visible:border-black/20 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-black/5"
+                  class="theme-select wake-dialog-field min-h-28 rounded-[0.4rem] border border-black/8 bg-transparent px-3.5 py-3 text-sm text-ink outline-none transition hover:bg-[var(--surface-hover)] focus-visible:border-black/20 focus-visible:bg-transparent focus-visible:ring-2 focus-visible:ring-black/5"
                   bind:value={sessionPrompt}
                   placeholder={copy.wakeQuotaPromptPlaceholder}
                   disabled={dialogBusy()}
@@ -221,7 +222,7 @@
                   {copy.wakeQuotaModelLabel}
                 </span>
                 <input
-                  class="theme-select wake-dialog-field rounded-[0.85rem] border border-black/8 bg-black/[0.02] px-3.5 py-3 text-sm text-ink shadow-[0_1px_2px_rgba(0,0,0,0.02)_inset] outline-none transition hover:bg-black/[0.04] focus-visible:border-black/20 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-black/5"
+                  class="theme-select wake-dialog-field rounded-[0.4rem] border border-black/8 bg-transparent px-3.5 py-3 text-sm text-ink outline-none transition hover:bg-[var(--surface-hover)] focus-visible:border-black/20 focus-visible:bg-transparent focus-visible:ring-2 focus-visible:ring-black/5"
                   type="text"
                   bind:value={sessionModel}
                   placeholder={copy.wakeQuotaModelPlaceholder}
@@ -231,7 +232,7 @@
 
               {#if requestError}
                 <div
-                  class="theme-error-panel rounded-xl border border-danger/18 bg-danger/6 px-3 py-2.5 text-sm text-danger"
+                  class="theme-error-panel rounded-[0.4rem] border border-danger/18 bg-danger/6 px-3 py-2.5 text-sm text-danger"
                 >
                   {requestError}
                 </div>
@@ -255,7 +256,7 @@
 
                 <pre
                   bind:this={logPanel}
-                  class="theme-code-surface wake-log-panel min-h-48 max-h-72 overflow-auto rounded-[0.85rem] border border-black/8 bg-black/[0.03] px-3.5 py-3 text-[13px] leading-relaxed text-ink shadow-[0_2px_4px_rgba(0,0,0,0.02)_inset]"><code
+                  class="theme-code-surface wake-log-panel min-h-48 max-h-72 overflow-auto rounded-[0.4rem] border border-black/8 bg-transparent px-3.5 py-3 text-[13px] leading-relaxed text-ink"><code
                     >{sessionLogs.length ? sessionLogs.join('\n') : copy.wakeQuotaLogEmpty}</code
                   ></pre>
               </div>
@@ -269,7 +270,7 @@
                     <span class="text-[10px] text-faint">{responsePreview(rawResponseBody)}</span>
                   </div>
                   <pre
-                    class="theme-code-surface max-h-56 overflow-auto overscroll-contain rounded-[0.85rem] border border-black/8 bg-black/[0.03] px-3.5 py-3 text-[13px] leading-relaxed text-ink shadow-[0_2px_4px_rgba(0,0,0,0.02)_inset]"><code
+                    class="theme-code-surface max-h-56 overflow-auto overscroll-contain rounded-[0.4rem] border border-black/8 bg-transparent px-3.5 py-3 text-[13px] leading-relaxed text-ink"><code
                       >{rawResponseBody || copy.wakeQuotaResultEmpty}</code
                     ></pre>
                 </div>
@@ -301,24 +302,32 @@
         </div>
       {:else}
         <div class="grid gap-4" data-wake-motion use:reveal={{ delay: 0.02 }}>
-          <div class="flex flex-wrap items-start justify-between gap-3">
+          <div
+            class="wake-section-header flex flex-wrap items-center justify-between gap-3 border-b border-black/6 pb-3"
+          >
             <div class="grid gap-1">
-              <p class="text-sm font-medium text-ink">{copy.wakeScheduleDialogTitle}</p>
-              <p class="text-xs text-muted-strong">{copy.wakeScheduleDialogDescription}</p>
+              <p class="text-sm font-semibold tracking-[-0.01em] text-ink">
+                {copy.wakeScheduleDialogTitle}
+              </p>
+              <p class="text-xs leading-5 text-muted-strong">
+                {copy.wakeScheduleDialogDescription}
+              </p>
             </div>
-            <label class="inline-flex items-center gap-2 text-sm text-ink">
-              <input type="checkbox" bind:checked={scheduleEnabled} disabled={dialogBusy()} />
+            <label class="inline-flex items-center gap-2 text-xs font-medium text-ink">
+              <Checkbox bind:checked={scheduleEnabled} disabled={dialogBusy()} />
               <span>{copy.wakeScheduleEnabled}</span>
             </label>
           </div>
 
-          <div class="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
-            <div class="grid gap-4">
-              <div class="grid gap-2">
+          <div class="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)]">
+            <div class="grid content-start gap-4">
+              <div class="grid gap-2.5">
                 <div class="flex items-center justify-between gap-3">
-                  <span class="text-sm font-medium text-ink">{copy.wakeScheduleTimes}</span>
+                  <span class="text-xs font-semibold uppercase tracking-[0.12em] text-faint">
+                    {copy.wakeScheduleTimes}
+                  </span>
                   <button
-                    class="theme-select rounded-md border border-black/10 px-3 py-2 text-sm"
+                    class="theme-select wake-compact-button rounded-[0.35rem] border border-black/10 px-2.5 py-1.5 text-xs font-medium"
                     type="button"
                     onclick={addTime}
                     disabled={dialogBusy()}
@@ -327,11 +336,13 @@
                   </button>
                 </div>
 
-                <div class="grid gap-2">
+                <div class="grid gap-1.5">
                   {#each scheduleTimes as timeValue, timeIndex (timeIndex)}
-                    <div class="flex items-center gap-2">
+                    <div
+                      class="wake-time-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2"
+                    >
                       <input
-                        class="theme-select wake-dialog-field h-11 min-w-0 flex-1 rounded-[0.85rem] border border-black/8 bg-black/[0.02] px-3.5 text-sm text-ink shadow-[0_1px_2px_rgba(0,0,0,0.02)_inset] outline-none transition hover:bg-black/[0.04] focus-visible:border-black/20 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-black/5"
+                        class="theme-select wake-dialog-field h-9 min-w-0 rounded-[0.4rem] border border-black/8 bg-transparent px-3 text-sm tabular-nums text-ink outline-none transition hover:bg-[var(--surface-hover)] focus-visible:border-black/20 focus-visible:bg-transparent focus-visible:ring-2 focus-visible:ring-black/5"
                         type="text"
                         value={timeValue}
                         placeholder={copy.wakeScheduleTimePlaceholder}
@@ -340,7 +351,7 @@
                           updateTime(timeIndex, (event.currentTarget as HTMLInputElement).value)}
                       />
                       <button
-                        class="theme-select rounded-md border border-black/10 px-3 py-2 text-sm"
+                        class="theme-select wake-compact-button rounded-[0.35rem] border border-black/10 px-2.5 py-1.5 text-xs font-medium"
                         type="button"
                         onclick={() => removeTime(timeIndex)}
                         disabled={dialogBusy()}
@@ -352,20 +363,24 @@
                 </div>
               </div>
 
-              <div class="grid gap-3 md:grid-cols-2">
-                <label class="grid gap-1">
-                  <span class="text-sm font-medium text-ink">{copy.wakeQuotaPromptLabel}</span>
+              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(12rem,0.72fr)]">
+                <label class="grid gap-1.5">
+                  <span class="text-xs font-semibold uppercase tracking-[0.12em] text-faint">
+                    {copy.wakeQuotaPromptLabel}
+                  </span>
                   <textarea
-                    class="theme-select wake-dialog-field min-h-24 rounded-[0.85rem] border border-black/8 bg-black/[0.02] px-3.5 py-3 text-sm text-ink shadow-[0_1px_2px_rgba(0,0,0,0.02)_inset] outline-none transition hover:bg-black/[0.04] focus-visible:border-black/20 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-black/5"
+                    class="theme-select wake-dialog-field min-h-24 rounded-[0.4rem] border border-black/8 bg-transparent px-3 py-2.5 text-sm text-ink outline-none transition hover:bg-[var(--surface-hover)] focus-visible:border-black/20 focus-visible:bg-transparent focus-visible:ring-2 focus-visible:ring-black/5"
                     bind:value={schedulePrompt}
                     placeholder={copy.wakeQuotaPromptPlaceholder}
                     disabled={dialogBusy()}
                   ></textarea>
                 </label>
-                <label class="grid gap-1">
-                  <span class="text-sm font-medium text-ink">{copy.wakeQuotaModelLabel}</span>
+                <label class="grid content-start gap-1.5">
+                  <span class="text-xs font-semibold uppercase tracking-[0.12em] text-faint">
+                    {copy.wakeQuotaModelLabel}
+                  </span>
                   <input
-                    class="theme-select wake-dialog-field h-11 rounded-[0.85rem] border border-black/8 bg-black/[0.02] px-3.5 text-sm text-ink shadow-[0_1px_2px_rgba(0,0,0,0.02)_inset] outline-none transition hover:bg-black/[0.04] focus-visible:border-black/20 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-black/5"
+                    class="theme-select wake-dialog-field h-9 rounded-[0.4rem] border border-black/8 bg-transparent px-3 text-sm text-ink outline-none transition hover:bg-[var(--surface-hover)] focus-visible:border-black/20 focus-visible:bg-transparent focus-visible:ring-2 focus-visible:ring-black/5"
                     type="text"
                     bind:value={scheduleModel}
                     placeholder={copy.wakeQuotaModelPlaceholder}
@@ -376,7 +391,7 @@
 
               {#if scheduleError}
                 <div
-                  class="rounded-xl border border-danger/16 bg-danger/8 px-3 py-2 text-sm text-danger"
+                  class="rounded-[0.4rem] border border-danger/16 bg-danger/8 px-3 py-2 text-sm text-danger"
                 >
                   {scheduleError}
                 </div>
@@ -384,15 +399,17 @@
             </div>
 
             <div
-              class="grid content-start gap-2 rounded-xl border border-black/8 bg-black/[0.02] px-3 py-3 text-xs text-muted-strong"
+              class="wake-schedule-summary grid content-start gap-0 rounded-[0.5rem] border border-black/8 bg-transparent px-3 py-2 text-xs text-muted-strong"
             >
-              <div class="flex items-center justify-between gap-3">
+              <div class="wake-summary-row flex items-center justify-between gap-3 py-2">
                 <span>{copy.wakeScheduleNextRun}</span>
-                <span>{nextWakeScheduleLabel(schedule, language, copy.wakeScheduleEmpty)}</span>
+                <span class="font-medium tabular-nums text-ink">
+                  {nextWakeScheduleLabel(schedule, language, copy.wakeScheduleEmpty)}
+                </span>
               </div>
-              <div class="flex items-center justify-between gap-3">
+              <div class="wake-summary-row flex items-center justify-between gap-3 py-2">
                 <span>{copy.wakeScheduleLastRun}</span>
-                <span
+                <span class="font-medium tabular-nums text-ink"
                   >{formatWakeScheduleLastTriggeredAt(
                     schedule?.lastTriggeredAt,
                     language,
@@ -400,15 +417,18 @@
                   )}</span
                 >
               </div>
-              <div class="flex items-center justify-between gap-3">
+              <div class="wake-summary-row flex items-center justify-between gap-3 py-2">
                 <span>{copy.wakeScheduleLastStatus}</span>
-                <span>{scheduleStatusLabel(schedule?.lastStatus)}</span>
+                <span class="font-medium text-ink">{scheduleStatusLabel(schedule?.lastStatus)}</span
+                >
               </div>
               {#if schedule?.lastMessage}
-                <div class="grid gap-1 pt-1">
-                  <span>{copy.wakeScheduleLastMessage}</span>
+                <div class="grid gap-1 border-t border-black/6 pt-2">
+                  <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
+                    {copy.wakeScheduleLastMessage}
+                  </span>
                   <pre
-                    class="theme-code-surface max-h-28 overflow-auto rounded-xl border border-black/8 bg-black/[0.02] px-3 py-2 text-[11px] leading-5 text-ink"><code
+                    class="theme-code-surface max-h-36 overflow-auto rounded-[0.35rem] border border-black/8 bg-transparent px-3 py-2 text-[11px] leading-5 text-ink"><code
                       >{schedule.lastMessage}</code
                     ></pre>
                 </div>
@@ -418,7 +438,7 @@
 
           <div class="flex items-center justify-between gap-3" data-wake-motion>
             <button
-              class="theme-select rounded-md border border-black/10 px-3 py-2 text-sm"
+              class="theme-select wake-compact-button rounded-[0.35rem] border border-black/10 px-2.5 py-1.5 text-xs font-medium"
               type="button"
               onclick={onDeleteSchedule}
               disabled={dialogBusy() || !schedule}
@@ -481,19 +501,50 @@
       monospace;
   }
 
+  .wake-dialog-panel.wake-dialog-panel {
+    box-shadow: 0 12px 30px -28px rgb(20 20 18 / 0.34) !important;
+  }
+
+  .wake-tab-list {
+    background: transparent;
+  }
+
+  .wake-tab-button[aria-pressed='true'] {
+    border: 1px solid var(--line);
+    box-shadow: none;
+  }
+
+  .wake-dialog-panel :global(.wake-dialog-field),
+  .wake-dialog-panel :global(.wake-compact-button),
+  .wake-dialog-panel :global(.theme-code-surface) {
+    box-shadow: none !important;
+  }
+
+  .wake-dialog-panel :global(.wake-dialog-field) {
+    background: transparent !important;
+  }
+
+  .wake-dialog-panel :global(.theme-code-surface) {
+    background: color-mix(in srgb, var(--panel-strong) 74%, var(--paper)) !important;
+    color: var(--ink) !important;
+  }
+
+  .wake-summary-row + .wake-summary-row {
+    border-top: 1px solid var(--line);
+  }
+
   :global(html[data-theme='dark']) .wake-dialog-backdrop {
     background: color-mix(in srgb, black 48%, transparent) !important;
   }
 
   :global(html[data-theme='dark']) .wake-dialog-panel {
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.06) inset,
-      0 24px 80px color-mix(in srgb, var(--paper-shadow) 72%, transparent) !important;
+    box-shadow: 0 12px 30px -28px rgb(0 0 0 / 0.76) !important;
   }
 
   :global(html[data-theme='dark']) .wake-dialog-field {
     border-color: var(--line) !important;
-    background: color-mix(in srgb, var(--panel-strong) 88%, var(--surface-soft) 12%) !important;
+    background: transparent !important;
+    box-shadow: none !important;
     color: var(--ink) !important;
   }
 
@@ -531,7 +582,14 @@
   }
 
   :global(html[data-theme='dark']) .wake-tab-button[aria-pressed='true'] {
-    background: color-mix(in srgb, var(--surface-hover) 86%, var(--ink) 6%) !important;
+    border-color: var(--line-strong) !important;
+    background: color-mix(in srgb, var(--panel-strong) 88%, var(--paper) 12%) !important;
+    color: var(--ink) !important;
+  }
+
+  :global(html[data-theme='dark']) .wake-dialog-panel :global(.theme-code-surface) {
+    background: color-mix(in srgb, var(--panel-strong) 78%, var(--paper)) !important;
+    box-shadow: none !important;
     color: var(--ink) !important;
   }
 </style>

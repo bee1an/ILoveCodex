@@ -4,6 +4,7 @@
   import type { CustomProviderSummary } from '../../../shared/codex'
   import { providerLabel, type LocalizedCopy } from './app-view'
   import type { ProviderDraft } from './accounts-panel-provider'
+  import Checkbox from './Checkbox.svelte'
 
   export let copy: LocalizedCopy
   export let iconRowButton: string
@@ -52,7 +53,7 @@
     >
       {#each sortableProviders as provider (provider.id)}
         <article
-          class="theme-provider-card group grid items-center gap-3 rounded-[0.8rem] border border-black/8 bg-white px-3 py-2 transition-[border-color,box-shadow,transform,background-color] duration-140 md:grid-cols-[auto_minmax(0,1fr)_auto]"
+          class="theme-provider-card group grid items-center gap-3 rounded-[0.35rem] border border-black/8 bg-white px-3 py-2 transition-colors duration-140 md:grid-cols-[auto_minmax(0,1fr)_auto]"
           animate:flip={{ duration: flipDurationMs }}
           aria-label={providerLabel(provider, copy)}
         >
@@ -74,25 +75,25 @@
                   class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(160px,0.7fr)]"
                 >
                   <input
-                    class="theme-provider-input rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-black/16"
+                    class="theme-provider-input rounded-[0.35rem] border border-black/10 bg-white px-3 py-2.5 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-black/16"
                     bind:value={providerDrafts[provider.id].name}
                     placeholder={copy.providerNamePlaceholder}
                     disabled={loginActionBusy || providerMutationBusy}
                   />
                   <input
-                    class="theme-provider-input rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-black/16"
+                    class="theme-provider-input rounded-[0.35rem] border border-black/10 bg-white px-3 py-2.5 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-black/16"
                     bind:value={providerDrafts[provider.id].baseUrl}
                     placeholder={copy.providerBaseUrlPlaceholder}
                     disabled={loginActionBusy || providerMutationBusy}
                   />
                   <input
-                    class="theme-provider-input rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-black/16"
+                    class="theme-provider-input rounded-[0.35rem] border border-black/10 bg-white px-3 py-2.5 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-black/16"
                     bind:value={providerDrafts[provider.id].model}
                     placeholder={copy.providerModelPlaceholder}
                     disabled={loginActionBusy || providerMutationBusy}
                   />
                   <input
-                    class="theme-provider-input rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-black/16 md:col-span-2"
+                    class="theme-provider-input rounded-[0.35rem] border border-black/10 bg-white px-3 py-2.5 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-black/16 md:col-span-2"
                     type="password"
                     bind:value={providerDrafts[provider.id].apiKey}
                     placeholder={copy.providerApiKeyPlaceholder}
@@ -143,10 +144,9 @@
           <div class="flex items-center justify-end gap-1">
             {#if editingProviderId === provider.id}
               <label
-                class="theme-provider-toggle mr-2 inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-2.5 py-1.5 text-sm text-ink"
+                class="theme-provider-toggle mr-2 inline-flex items-center gap-2 rounded-[0.35rem] border border-black/10 bg-white px-2.5 py-1.5 text-sm text-ink"
               >
-                <input
-                  type="checkbox"
+                <Checkbox
                   bind:checked={providerDrafts[provider.id].fastMode}
                   disabled={loginActionBusy || providerMutationBusy}
                 />
@@ -210,7 +210,7 @@
   </div>
 {:else}
   <div
-    class="theme-tag-empty flex min-h-0 flex-1 items-center justify-center overflow-y-auto rounded-[0.875rem] border border-dashed border-black/10 bg-black/[0.02] px-4 py-8 text-center"
+    class="theme-tag-empty flex min-h-0 flex-1 items-center justify-center overflow-y-auto rounded-[0.4rem] border border-dashed border-black/10 bg-black/[0.02] px-4 py-8 text-center"
   >
     <p class="text-sm text-muted-strong">{copy.noProviders}</p>
   </div>

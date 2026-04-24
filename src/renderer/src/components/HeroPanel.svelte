@@ -6,6 +6,7 @@
     LoginEvent
   } from '../../../shared/codex'
   import { type LocalizedCopy } from './app-view'
+  import Checkbox from './Checkbox.svelte'
   import { cascadeIn, reveal } from './gsap-motion'
 
   export let heroClass: string
@@ -26,6 +27,8 @@
   export let updatePollingInterval: (minutes: number) => void
   export let updateCheckForUpdatesOnStartup: (enabled: boolean) => void
   export let updateShowLocalMockData: (enabled: boolean) => void
+  export let updateToolbarIconMovable: (enabled: boolean) => void = () => {}
+  export let updateCollapsedToolbarIconDefaultPosition: (enabled: boolean) => void = () => {}
   export let updateCodexDesktopExecutablePath: (value: string) => Promise<void>
   export let showLocalMockToggle = false
   export let checkForUpdates: () => void
@@ -175,7 +178,7 @@
 
 {#if hasDetailContent}
   <div
-    class="fixed inset-0 z-[55] flex items-center justify-center bg-black/38 px-4 py-6 backdrop-blur-[2px]"
+    class="fixed inset-0 z-[55] flex items-center justify-center bg-black/38 px-4 py-6"
     use:reveal={{ y: 0, scale: 1, blur: 0, duration: 0.15 }}
     role="presentation"
     tabindex="-1"
@@ -191,7 +194,7 @@
     }}
   >
     <div
-      class={`${heroClass} w-full max-w-4xl max-h-[calc(100vh-3rem)] overflow-y-auto shadow-[0_24px_80px_rgba(15,23,42,0.18)]`}
+      class={`${heroClass} w-full max-w-4xl max-h-[calc(100vh-3rem)] overflow-y-auto`}
       use:reveal={{ delay: 0.05 }}
       use:cascadeIn={{
         selector: '[data-hero-motion]'
@@ -220,6 +223,11 @@
 
       {#if showSettings}
         <div class="grid gap-3" data-hero-motion>
+          <div class="grid gap-1">
+            <p class="text-sm font-medium text-ink">{copy.generalSettings}</p>
+            <p class="text-xs leading-5 text-muted-strong">{copy.generalSettingsDescription}</p>
+          </div>
+
           <div class="flex flex-wrap items-center gap-3">
             <span class="text-xs text-muted-strong">{copy.pollingInterval}</span>
             <select
@@ -234,12 +242,9 @@
             </select>
 
             <label class="ml-auto inline-flex items-center gap-2 text-xs text-muted-strong">
-              <input
-                type="checkbox"
-                class="h-4 w-4 rounded border border-black/14"
+              <Checkbox
                 checked={settings.checkForUpdatesOnStartup}
-                onchange={(event) =>
-                  updateCheckForUpdatesOnStartup((event.currentTarget as HTMLInputElement).checked)}
+                onCheckedChange={(checked) => updateCheckForUpdatesOnStartup(checked)}
               />
               <span>{copy.autoCheckUpdates}</span>
             </label>
@@ -256,16 +261,48 @@
 
           {#if showLocalMockToggle}
             <label class="inline-flex items-center gap-2 text-xs text-muted-strong">
-              <input
-                type="checkbox"
-                class="h-4 w-4 rounded border border-black/14"
+              <Checkbox
                 checked={settings.showLocalMockData !== false}
-                onchange={(event) =>
-                  updateShowLocalMockData((event.currentTarget as HTMLInputElement).checked)}
+                onCheckedChange={(checked) => updateShowLocalMockData(checked)}
               />
               <span>{copy.showLocalMockData}</span>
             </label>
           {/if}
+
+          <div
+            class="theme-soft-panel grid gap-3 rounded-xl border border-black/8 bg-black/[0.02] px-3 py-3"
+          >
+            <div class="grid gap-1">
+              <p class="text-sm font-medium text-ink">{copy.toolbarSettings}</p>
+              <p class="text-xs leading-5 text-muted-strong">{copy.toolbarSettingsDescription}</p>
+            </div>
+
+            <label class="inline-flex items-start gap-2 text-xs text-muted-strong">
+              <Checkbox
+                className="mt-0.5"
+                checked={settings.toolbarIconMovable !== false}
+                onCheckedChange={(checked) => updateToolbarIconMovable(checked)}
+              />
+              <span class="grid gap-0.5">
+                <span class="font-medium text-ink">{copy.toolbarIconMovable}</span>
+                <span>{copy.toolbarIconMovableDescription}</span>
+              </span>
+            </label>
+
+            <label class="inline-flex items-start gap-2 text-xs text-muted-strong">
+              <Checkbox
+                className="mt-0.5"
+                checked={settings.collapsedToolbarIconDefaultPosition !== false}
+                onCheckedChange={(checked) => updateCollapsedToolbarIconDefaultPosition(checked)}
+              />
+              <span class="grid gap-0.5">
+                <span class="font-medium text-ink">
+                  {copy.collapsedToolbarIconDefaultPosition}
+                </span>
+                <span>{copy.collapsedToolbarIconDefaultPositionDescription}</span>
+              </span>
+            </label>
+          </div>
 
           {#if showCodexDesktopExecutablePath}
             <div class="flex flex-wrap items-center gap-3">
@@ -285,7 +322,7 @@
 
             {#if showCodexDesktopExecutableEditor}
               <div
-                class="flex flex-wrap items-center gap-3 rounded-2xl border border-black/7 bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
+                class="flex flex-wrap items-center gap-3 rounded-2xl border border-black/7 bg-white"
               >
                 <span class="w-[168px] shrink-0 text-xs font-medium text-ink">
                   {copy.codexDesktopExecutablePath}
@@ -356,8 +393,7 @@
             <label
               class="theme-provider-toggle inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-ink"
             >
-              <input
-                type="checkbox"
+              <Checkbox
                 bind:checked={newProviderFastMode}
                 disabled={loginActionBusy || providerMutationBusy}
               />

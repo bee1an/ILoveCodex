@@ -67,7 +67,7 @@
 
   {#if open}
     <div
-      class="theme-compact-select-panel absolute right-0 top-[calc(100%+0.5rem)] z-30 min-w-[9rem] rounded-xl border border-black/8 bg-white p-1 shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
+      class="theme-compact-select-panel absolute right-0 top-[calc(100%+0.5rem)] z-30 min-w-[9rem] rounded-xl border border-black/8 bg-white p-1"
       role="listbox"
       aria-label={ariaLabel}
     >
@@ -103,7 +103,7 @@
   :global(html[data-theme='dark'] .theme-compact-select-panel) {
     background: var(--panel-strong) !important;
     border-color: var(--line) !important;
-    box-shadow: 0 18px 44px color-mix(in srgb, var(--paper-shadow) 65%, transparent) !important;
+    box-shadow: var(--elevation-2) !important;
   }
 
   :global(html[data-theme='dark'] .theme-compact-select-option-idle) {

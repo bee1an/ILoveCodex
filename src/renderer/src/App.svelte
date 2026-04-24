@@ -52,6 +52,19 @@
 
   type WakeDialogStatus = 'idle' | 'running' | 'success' | 'skipped' | 'error'
   type WakeDialogTab = 'session' | 'schedule'
+  type ThemeTransitionOrigin = {
+    x?: number
+    y?: number
+    target?: HTMLElement | null
+  }
+  type DocumentWithViewTransitions = Document & {
+    startViewTransition?: (callback: () => void | Promise<void>) => {
+      ready: Promise<void>
+      finished: Promise<void>
+      updateCallbackDone: Promise<void>
+      skipTransition: () => void
+    }
+  }
 
   let snapshot: AppSnapshot = {
     accounts: [],
@@ -72,7 +85,9 @@
       checkForUpdatesOnStartup: true,
       codexDesktopExecutablePath: '',
       showLocalMockData: true,
-      statsDisplay: defaultStatsDisplaySettings()
+      statsDisplay: defaultStatsDisplaySettings(),
+      toolbarIconMovable: true,
+      collapsedToolbarIconDefaultPosition: true
     },
     usageByAccountId: {},
     usageErrorByAccountId: {},
@@ -98,6 +113,7 @@
   let pageError = ''
   let showSettings = false
   let loginPortOccupant: PortOccupant | null = null
+  let windowFocused = true
   let killingLoginPortOccupant = false
   let accountActionKey = ''
   let updateState: AppUpdateState = {
@@ -142,22 +158,98 @@
     'antialiased'
   ]
 
-  const heroClass = 'theme-surface rounded-[1rem] border border-black/8 bg-white p-4 sm:p-5'
-  const panelClass = 'theme-surface rounded-[1rem] border border-black/8 bg-white p-5'
+  const heroClass = 'theme-surface rounded-[1.1rem] border border-black/8 bg-white p-5 sm:p-6'
+  const panelClass = 'theme-workspace bg-paper p-0'
   const primaryActionButton =
-    'inline-flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-medium text-white transition-colors duration-140 hover:bg-black/88 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/16 disabled:cursor-not-allowed disabled:opacity-48'
+    'theme-primary-button inline-flex items-center justify-center gap-2 rounded-[0.4rem] bg-black px-4 py-3 text-sm font-semibold text-white transition-[background-color,opacity] duration-160 hover:bg-black/88 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/16 disabled:cursor-not-allowed disabled:opacity-48'
   const compactGhostButton =
-    'theme-ghost-button inline-flex items-center justify-center rounded-md border border-black/10 bg-transparent px-3 py-2 text-sm font-medium text-ink transition-colors duration-140 hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/16 disabled:cursor-not-allowed disabled:opacity-48'
+    'theme-ghost-button inline-flex items-center justify-center rounded-[0.35rem] border border-black/8 bg-white px-3 py-2 text-sm font-medium text-ink transition-[background-color,border-color,opacity] duration-160 hover:border-black/12 hover:bg-black/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/16 disabled:cursor-not-allowed disabled:opacity-48'
   const iconToolbarButton =
-    'theme-icon-button inline-flex h-8 w-8 appearance-none items-center justify-center border-0 rounded-md bg-transparent p-0 text-ink outline-none shadow-none transition-colors duration-140 hover:bg-black/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/16 disabled:cursor-not-allowed disabled:opacity-48'
+    'theme-icon-button inline-flex h-8 w-8 appearance-none items-center justify-center border border-transparent rounded-[0.38rem] bg-transparent p-0 text-ink outline-none shadow-none transition-[background-color,border-color,opacity] duration-160 hover:border-black/8 hover:bg-black/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/16 disabled:cursor-not-allowed disabled:opacity-48'
   const iconRowButton =
-    'theme-row-button inline-flex h-7 w-7 appearance-none items-center justify-center border-0 rounded-md bg-transparent p-0 text-black/68 outline-none shadow-none transition-colors duration-140 hover:bg-black/[0.05] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/16 disabled:cursor-not-allowed disabled:opacity-40'
-  const dragRegionStyle = '-webkit-app-region: drag; app-region: drag;'
+    'theme-row-button inline-flex h-7 w-7 appearance-none items-center justify-center border border-transparent rounded-[0.35rem] bg-transparent p-0 text-black/58 outline-none shadow-none transition-[background-color,border-color,color,opacity] duration-160 hover:border-black/8 hover:bg-black/[0.035] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/16 disabled:cursor-not-allowed disabled:opacity-40'
 
   const copyForLanguage = (): (typeof messages)['zh-CN'] => messages[snapshot.settings.language]
   const exportFormatOptionOrder = [...accountTransferFormats]
   const resolvedTheme = (theme: AppTheme): 'light' | 'dark' =>
     theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme
+
+  const prefersReducedMotion = (): boolean =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  const themeTransitionPoint = (
+    origin?: ThemeTransitionOrigin
+  ): { x: number; y: number } | null => {
+    if (typeof window === 'undefined' || !origin) {
+      return null
+    }
+
+    if (Number.isFinite(origin.x) && Number.isFinite(origin.y)) {
+      return {
+        x: Math.max(0, Math.min(window.innerWidth, origin.x ?? 0)),
+        y: Math.max(0, Math.min(window.innerHeight, origin.y ?? 0))
+      }
+    }
+
+    if (origin.target) {
+      const rect = origin.target.getBoundingClientRect()
+
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      }
+    }
+
+    return null
+  }
+
+  const applyThemeWithRipple = (theme: AppTheme, origin?: ThemeTransitionOrigin): void => {
+    if (typeof document === 'undefined' || typeof window === 'undefined') {
+      return
+    }
+
+    const transitionDocument = document as DocumentWithViewTransitions
+    const point = themeTransitionPoint(origin)
+
+    if (
+      !point ||
+      prefersReducedMotion() ||
+      !transitionDocument.startViewTransition ||
+      !document.documentElement.animate
+    ) {
+      applyTheme(theme)
+      return
+    }
+
+    const transition = transitionDocument.startViewTransition(() => {
+      applyTheme(theme)
+    })
+
+    void transition.ready
+      .then(() => {
+        const endRadius = Math.hypot(
+          Math.max(point.x, window.innerWidth - point.x),
+          Math.max(point.y, window.innerHeight - point.y)
+        )
+
+        document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at ${point.x}px ${point.y}px)`,
+              `circle(${endRadius}px at ${point.x}px ${point.y}px)`
+            ]
+          },
+          {
+            duration: 520,
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            pseudoElement: '::view-transition-new(root)'
+          }
+        )
+      })
+      .catch(() => {
+        transition.skipTransition()
+      })
+  }
 
   const exportFormatLabel = (format: AccountTransferFormat): string => {
     const copy = copyForLanguage()
@@ -967,12 +1059,12 @@
     await runAction('settings:language', () => window.codexApp.updateSettings({ language }))
   }
 
-  const updateTheme = async (theme: AppTheme): Promise<void> => {
+  const updateTheme = async (theme: AppTheme, origin?: ThemeTransitionOrigin): Promise<void> => {
     if (snapshot.settings.theme === theme) {
       return
     }
 
-    applyTheme(theme)
+    applyThemeWithRipple(theme, origin)
     await runAction('settings:theme', () => window.codexApp.updateSettings({ theme }))
   }
 
@@ -993,6 +1085,26 @@
 
     await runAction('settings:show-local-mock-data', () =>
       window.codexApp.updateSettings({ showLocalMockData: enabled })
+    )
+  }
+
+  const updateToolbarIconMovable = async (enabled: boolean): Promise<void> => {
+    if ((snapshot.settings.toolbarIconMovable ?? true) === enabled) {
+      return
+    }
+
+    await runAction('settings:toolbar-icon-movable', () =>
+      window.codexApp.updateSettings({ toolbarIconMovable: enabled })
+    )
+  }
+
+  const updateCollapsedToolbarIconDefaultPosition = async (enabled: boolean): Promise<void> => {
+    if ((snapshot.settings.collapsedToolbarIconDefaultPosition ?? true) === enabled) {
+      return
+    }
+
+    await runAction('settings:toolbar-icon-default-position', () =>
+      window.codexApp.updateSettings({ collapsedToolbarIconDefaultPosition: enabled })
     )
   }
 
@@ -1140,15 +1252,27 @@
   <title>CodexDock</title>
 </svelte:head>
 
-<svelte:window on:keydown={handleGlobalKeydown} />
+<svelte:window
+  on:keydown={handleGlobalKeydown}
+  on:focus={() => {
+    windowFocused = true
+  }}
+  on:blur={() => {
+    windowFocused = false
+  }}
+/>
 
 <div class={`app-shell ${isTrayView ? 'min-h-screen' : 'h-screen overflow-hidden'} flex flex-col`}>
-  {#if !isTrayView}
-    <div class="h-7 w-full select-none sm:h-8" style={dragRegionStyle} aria-hidden="true"></div>
+  {#if !isTrayView && appMeta.platform === 'darwin' && !windowFocused}
+    <div class="mac-inactive-traffic-lights" aria-hidden="true">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
   {/if}
 
   <div
-    class={`mx-auto ${isTrayView ? 'grid gap-4 max-w-[420px] px-3 pb-3 pt-2' : 'flex h-0 min-h-0 w-full max-w-6xl flex-1 flex-col gap-4 px-4 pb-4 pt-4 sm:px-6 sm:pb-6 sm:pt-5 lg:px-8 lg:pb-8'}`}
+    class={`mx-auto ${isTrayView ? 'grid gap-4 max-w-[420px] px-3 pb-3 pt-2' : 'flex h-0 min-h-0 w-full max-w-none flex-1 flex-col gap-0 p-0'}`}
   >
     {#if isTrayView}
       <TrayPanel
@@ -1170,8 +1294,10 @@
         {updatePollingInterval}
       />
     {:else}
-      <div class="grid h-full min-h-0 flex-1 items-stretch gap-4 grid-cols-[minmax(0,1fr)_44px]">
-        <div class="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
+      <div
+        class="relative grid h-full min-h-0 flex-1 items-stretch gap-0 grid-cols-[minmax(0,1fr)]"
+      >
+        <div class="flex h-full min-h-0 flex-col gap-0 overflow-hidden">
           {#if pageError}
             <section
               use:reveal={{ delay: 0 }}
@@ -1212,6 +1338,7 @@
               copy={copyForLanguage()}
               workspaceVersion={appMeta.version}
               workspaceStatusText={loginEvent?.message ?? ''}
+              platform={appMeta.platform}
               workspaceStatusToneClass={loginEvent
                 ? loginTone(loginEvent.phase)
                 : 'text-muted-strong'}
@@ -1280,7 +1407,10 @@
           </div>
         </div>
 
-        <div class="sticky top-0 self-start" use:reveal={{ delay: 0.08 }}>
+        <div
+          class="app-bottom-toolbar fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center"
+          use:reveal={{ delay: 0.08 }}
+        >
           <AppSider
             copy={copyForLanguage()}
             {appMeta}
@@ -1291,6 +1421,9 @@
             loginActionBusy={loginActionBusy() || (!snapshot.accounts.length && refreshingAllUsage)}
             {refreshingAllUsage}
             {showProviderComposer}
+            toolbarIconMovable={snapshot.settings.toolbarIconMovable !== false}
+            collapsedToolbarIconDefaultPosition={snapshot.settings
+              .collapsedToolbarIconDefaultPosition !== false}
             bestAccount={bestAccount()}
             activeAccountId={snapshot.activeAccountId}
             {startLogin}
@@ -1339,7 +1472,7 @@
 
 {#if showExportFormatDialog}
   <div
-    class="fixed inset-0 z-[60] flex items-center justify-center bg-black/38 px-4 py-6 backdrop-blur-[2px]"
+    class="fixed inset-0 z-[60] flex items-center justify-center bg-black/38 px-4 py-6"
     role="presentation"
     tabindex="-1"
     on:click={(event) => {
@@ -1354,7 +1487,7 @@
     }}
   >
     <div
-      class="theme-surface w-full max-w-xl rounded-[1.25rem] border border-black/8 bg-white p-5 shadow-[0_24px_80px_rgba(15,23,42,0.18)] sm:p-6"
+      class="theme-surface w-full max-w-xl rounded-[1.25rem] border border-black/8 bg-white p-5 sm:p-6"
       use:reveal={{ delay: 0.05 }}
       use:cascadeIn={{
         selector: '[data-motion-item]'
@@ -1476,6 +1609,8 @@
     {updatePollingInterval}
     {updateCheckForUpdatesOnStartup}
     {updateShowLocalMockData}
+    {updateToolbarIconMovable}
+    {updateCollapsedToolbarIconDefaultPosition}
     {updateCodexDesktopExecutablePath}
     showCodexDesktopExecutablePath={shouldShowCodexDesktopExecutablePath()}
     showLocalMockToggle={appMeta.isPackaged === false}
@@ -1489,6 +1624,220 @@
 </div>
 
 <style>
+  :global(::view-transition-old(root)),
+  :global(::view-transition-new(root)) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+
+  :global(::view-transition-old(root)) {
+    z-index: 0;
+  }
+
+  :global(::view-transition-new(root)) {
+    z-index: 1;
+  }
+
+  :global(.app-shell *),
+  :global(.app-shell *::before),
+  :global(.app-shell *::after) {
+    transition-duration: 0ms !important;
+  }
+
+  .app-shell {
+    position: relative;
+    isolation: isolate;
+    background: var(--paper);
+  }
+
+  .mac-inactive-traffic-lights {
+    position: fixed;
+    top: 18px;
+    left: 16px;
+    z-index: 100;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  .mac-inactive-traffic-lights span {
+    width: 12px;
+    height: 12px;
+    flex: 0 0 12px;
+    border-radius: 999px;
+    background: #6d716c;
+    box-shadow: none;
+    filter: none;
+    opacity: 1;
+  }
+
+  :global(html[data-theme='dark']) .mac-inactive-traffic-lights span {
+    background: #3c4848;
+  }
+
+  :global(.theme-workspace) {
+    background: var(--paper) !important;
+    box-shadow: none;
+  }
+
+  :global(html[data-theme='dark']) .app-shell {
+    background: var(--paper);
+  }
+
+  :global(.theme-surface) {
+    border-color: color-mix(in srgb, var(--line-strong) 72%, transparent) !important;
+    background: var(--panel-strong) !important;
+    box-shadow: var(--elevation-2) !important;
+  }
+
+  :global(.theme-surface[role='dialog']),
+  :global(.wake-dialog-panel) {
+    border-radius: 0.6rem !important;
+    border-color: color-mix(in srgb, var(--line-strong) 82%, transparent) !important;
+    background: var(--panel) !important;
+    box-shadow: var(--elevation-2) !important;
+  }
+
+  :global(.wake-dialog-backdrop) {
+    background: color-mix(in srgb, black 34%, transparent) !important;
+  }
+
+  :global(.theme-toolbar),
+  :global(.theme-soft-panel) {
+    border-color: color-mix(in srgb, var(--line) 82%, transparent) !important;
+    background: color-mix(in srgb, var(--panel-strong) 78%, var(--surface-soft)) !important;
+    box-shadow: none;
+  }
+
+  :global(.workspace-topbar) {
+    position: relative;
+    z-index: 1;
+    border-bottom: 1px solid color-mix(in srgb, var(--line-strong) 74%, transparent);
+    background: color-mix(in srgb, var(--panel) 78%, var(--paper));
+    box-shadow:
+      0 1px 0 var(--edge-light) inset,
+      0 1px 0 color-mix(in srgb, var(--edge-dark) 22%, transparent);
+  }
+
+  :global(.theme-view-toggle-active) {
+    box-shadow: none;
+  }
+
+  :global(.theme-view-toggle-active) {
+    border-color: color-mix(in srgb, var(--line-strong) 68%, transparent) !important;
+    background: var(--panel-strong) !important;
+  }
+
+  :global(.theme-account-row) {
+    border: 0 !important;
+    outline: 0 !important;
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: none;
+    position: relative;
+  }
+
+  :global(.theme-account-row::before),
+  :global(.theme-account-row::after) {
+    content: none !important;
+  }
+
+  :global(.theme-account-row + .theme-account-row::before) {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0.75rem;
+    left: 3.25rem;
+    height: 1px;
+    background: color-mix(in srgb, var(--line) 62%, transparent);
+    pointer-events: none;
+  }
+
+  :global(.theme-account-row:has(.theme-checkbox-input:checked)) {
+    background: var(--surface-selected) !important;
+  }
+
+  :global(.theme-account-selector),
+  :global(.theme-workbench-chevron),
+  :global(.theme-workbench-summary-pill),
+  :global(.theme-selection-group-button),
+  :global(.theme-selection-export) {
+    box-shadow: none;
+  }
+
+  :global(.theme-workbench-toolbar) {
+    border-color: color-mix(in srgb, var(--line-strong) 64%, transparent) !important;
+    background: transparent !important;
+    box-shadow: none;
+  }
+
+  :global(.theme-filter-chip-idle) {
+    box-shadow: none;
+  }
+
+  :global(.theme-filter-chip-active) {
+    background: var(--ink) !important;
+    color: var(--paper) !important;
+    box-shadow: none;
+  }
+
+  :global(.scroll-row .theme-soft-panel) {
+    border-radius: 0.34rem !important;
+    background: color-mix(in srgb, var(--panel-strong) 58%, var(--surface-soft)) !important;
+  }
+
+  :global(.theme-version-pill),
+  :global(.theme-plan-neutral),
+  :global(.theme-plan-plus),
+  :global(.theme-plan-pro),
+  :global(.theme-plan-team),
+  :global(.theme-plan-enterprise),
+  :global(.theme-wake-schedule-pill),
+  :global(.theme-tag-assigned) {
+    border-radius: 0.28rem !important;
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--edge-light) 62%, transparent) inset;
+  }
+
+  :global(.theme-provider-card),
+  :global(.theme-tag-manager-card) {
+    border-width: 0 0 1px !important;
+    border-radius: 0 !important;
+    border-color: color-mix(in srgb, var(--line) 88%, transparent) !important;
+    background: transparent !important;
+    box-shadow: none;
+  }
+
+  :global(.theme-tag-empty),
+  :global(.theme-tag-picker-surface) {
+    border-color: color-mix(in srgb, var(--line-strong) 72%, transparent) !important;
+    background: color-mix(in srgb, var(--panel-strong) 92%, var(--paper)) !important;
+    box-shadow: none;
+  }
+
+  :global(.theme-provider-card:hover),
+  :global(.theme-tag-manager-card:hover) {
+    background: var(--surface-hover) !important;
+  }
+
+  :global(.theme-select),
+  :global(.theme-provider-input),
+  :global(.theme-tag-input),
+  :global(.wake-dialog-field) {
+    border-color: color-mix(in srgb, var(--line-strong) 70%, transparent) !important;
+    background: var(--panel-strong) !important;
+    box-shadow: var(--input-shadow);
+  }
+
+  :global(.theme-primary-button) {
+    box-shadow: var(--control-shadow) !important;
+  }
+
+  :global(.theme-ghost-button),
+  :global(.theme-menu-choice-active) {
+    box-shadow: var(--control-shadow);
+  }
+
   :global(.text-muted) {
     color: var(--ink-soft);
   }
@@ -1508,15 +1857,13 @@
   :global(html[data-theme='dark'] .theme-surface) {
     border-color: var(--line-strong) !important;
     background: var(--panel-strong) !important;
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 18px 44px color-mix(in srgb, var(--paper-shadow) 55%, transparent) !important;
+    box-shadow: var(--elevation-2) !important;
   }
 
   :global(html[data-theme='dark'] .theme-tray-panel) {
     border-color: var(--line-strong) !important;
     background: var(--panel) !important;
-    box-shadow: 0 18px 48px var(--paper-shadow) !important;
+    box-shadow: var(--elevation-2) !important;
   }
 
   :global(html[data-theme='dark'] .theme-soft-panel),
@@ -1530,6 +1877,29 @@
 
   :global(html[data-theme='dark'] .theme-soft-panel) {
     border-color: color-mix(in srgb, var(--line) 72%, transparent) !important;
+  }
+
+  :global(html[data-theme='dark'] [class*='bg-white']) {
+    background-color: var(--panel-strong) !important;
+  }
+
+  :global(html[data-theme='dark'] [class*='text-black']) {
+    color: var(--ink-soft) !important;
+  }
+
+  :global(html[data-theme='dark'] .theme-primary-button) {
+    background: var(--ink) !important;
+    color: var(--paper) !important;
+  }
+
+  :global(html[data-theme='dark'] .theme-ghost-button) {
+    border-color: var(--line) !important;
+    background: var(--panel) !important;
+    color: var(--ink) !important;
+  }
+
+  :global(html[data-theme='dark'] .theme-ghost-button:disabled) {
+    color: var(--ink-soft) !important;
   }
 
   :global(html[data-theme='dark'] .theme-version-pill) {
@@ -1592,7 +1962,7 @@
   :global(html[data-theme='dark'] .theme-provider-card) {
     border-color: color-mix(in srgb, var(--line-strong) 78%, transparent) !important;
     background: color-mix(in srgb, var(--panel-strong) 92%, var(--panel) 8%) !important;
-    box-shadow: none !important;
+    box-shadow: var(--elevation-1) !important;
   }
 
   :global(html[data-theme='dark'] .theme-provider-input),

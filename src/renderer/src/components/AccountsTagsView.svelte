@@ -25,7 +25,7 @@
 </script>
 
 <div
-  class="theme-soft-panel theme-tag-manager-panel flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-[1rem] border border-black/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(250,250,250,0.92))] p-4"
+  class="theme-soft-panel theme-tag-manager-panel flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-[1rem] border border-black/8 bg-white p-4"
 >
   <div class="flex flex-wrap items-end justify-between gap-3">
     <p class="text-sm text-muted-strong">
@@ -37,7 +37,7 @@
 
   <div class="flex flex-wrap items-center gap-2">
     <input
-      class="theme-tag-input min-w-[220px] flex-1 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-black/16"
+      class="theme-tag-input min-w-[220px] flex-1 rounded-[0.35rem] border border-black/10 bg-white px-3 py-2.5 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-black/16"
       type="text"
       bind:value={newTagName}
       placeholder={copy.newTagPlaceholder}
@@ -63,7 +63,7 @@
     <div class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
       {#each tags as tag (tag.id)}
         <div
-          class="theme-tag-manager-card flex-none rounded-[0.95rem] border border-black/8 bg-white px-3.5 py-2.5"
+          class="theme-tag-manager-card flex-none rounded-[0.4rem] border border-black/8 bg-white px-3.5 py-2.5"
         >
           <div class={`grid gap-2 ${taggedAccountCount(tag.id) ? 'pb-2' : ''}`}>
             {#if editingTagId === tag.id}
@@ -148,7 +148,7 @@
     </div>
   {:else}
     <div
-      class="theme-tag-empty rounded-[0.95rem] border border-dashed border-black/10 bg-white/70 px-4 py-8 text-center"
+      class="theme-tag-empty rounded-[0.4rem] border border-dashed border-black/10 bg-white px-4 py-8 text-center"
     >
       <p class="text-sm text-faint">{copy.noTags}</p>
     </div>
@@ -157,11 +157,7 @@
 
 <style>
   :global(html[data-theme='dark']) .theme-tag-manager-panel {
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--panel-strong) 92%, transparent),
-      color-mix(in srgb, var(--panel) 96%, transparent)
-    ) !important;
+    background: var(--panel-strong) !important;
     border-color: var(--line-strong) !important;
   }
 

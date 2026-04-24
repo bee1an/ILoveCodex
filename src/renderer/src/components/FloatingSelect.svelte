@@ -147,7 +147,7 @@
       data-floating-root=""
       transition:fly={{ y: -6, duration: 200 }}
       class={menuClass}
-      style="background-color: var(--panel-strong); background-image: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 100%); box-shadow: 0 24px 54px -12px var(--paper-shadow), 0 8px 24px -12px var(--paper-shadow), 0 0 0 1px var(--line-strong), inset 0 1px 0 0 rgba(255,255,255,0.12);"
+      style="background-color: var(--panel-strong); box-shadow: var(--elevation-2), 0 0 0 1px var(--line-strong);"
     >
       <div role="listbox" aria-label={ariaLabel} class="grid gap-0.5">
         {#each options as option (option.value)}

@@ -45,6 +45,7 @@
     portal,
     stopFloatingPointerPropagation
   } from './floating'
+  import Checkbox from './Checkbox.svelte'
   import {
     formatWakeScheduleLastTriggeredAt,
     nextWakeScheduleLabel,
@@ -225,6 +226,19 @@
     selectedAccountIds = []
   }
 
+  function setAccountSelected(accountId: string, selected: boolean): void {
+    if (selected) {
+      selectedAccountIds = selectedAccountIds.includes(accountId)
+        ? selectedAccountIds
+        : [...selectedAccountIds, accountId]
+      return
+    }
+
+    selectedAccountIds = selectedAccountIds.filter(
+      (selectedAccountId) => selectedAccountId !== accountId
+    )
+  }
+
   async function exportCurrentSelection(): Promise<void> {
     if (!selectedAccountIds.length || loginActionBusy) {
       return
@@ -250,9 +264,9 @@
     let tone = ''
 
     if (selectedAccountIds.includes(account.id)) {
-      tone += 'bg-[var(--surface-selected)] shadow-sm'
+      tone += 'bg-[var(--surface-selected)]'
     } else if (activeAccountId === account.id) {
-      tone += 'bg-[var(--surface-soft)]'
+      tone += 'bg-transparent'
     } else {
       tone += 'bg-transparent'
     }
@@ -392,11 +406,9 @@
   }}
 />
 
-<div
-  class="theme-workbench-toolbar grid gap-2 rounded-[0.9rem] border border-black/8 bg-black/[0.02] px-2.5 py-2.5"
->
+<div class="theme-workbench-toolbar border-b border-black/8 px-4 py-1.5">
   <button
-    class="theme-workbench-toggle flex w-full items-center justify-between gap-3 rounded-[0.8rem] border border-black/8 bg-white/[0.84] px-3 py-2 text-left transition-colors duration-140 hover:bg-white"
+    class="theme-workbench-toggle flex w-full items-center justify-between gap-3 rounded-[0.35rem] border-0 bg-transparent px-1.5 py-1 text-left transition-colors duration-140 hover:bg-black/[0.03]"
     type="button"
     aria-expanded={accountWorkbenchExpanded}
     aria-controls="account-workbench-panel"
@@ -410,43 +422,40 @@
       accountWorkbenchExpanded = !accountWorkbenchExpanded
     }}
   >
-    <div class="min-w-0 grid gap-1">
-      <div class="flex items-center gap-1.5">
-        <span class="i-lucide-sliders-horizontal h-3.5 w-3.5 text-muted-strong"></span>
-        <span class="text-[10px] font-medium uppercase tracking-[0.08em] text-faint">
-          {copy.filtersAndBulkActions}
-        </span>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-1.5">
-        {#if activeTagFilter !== 'all'}
-          <span
-            class="theme-workbench-summary-pill inline-flex items-center gap-1 rounded-full border border-black/8 bg-white px-2 py-1 text-[11px] font-medium text-ink"
-          >
-            <span class="i-lucide-tags h-3 w-3 text-muted-strong"></span>
-            <span>{tagFilterLabel(activeTagFilter, tags, copy)}</span>
-          </span>
-        {/if}
-
-        {#if selectedVisibleCount}
-          <span
-            class="theme-workbench-summary-pill inline-flex items-center gap-1 rounded-full border border-black/8 bg-white px-2 py-1 text-[11px] font-medium text-ink"
-          >
-            <span class="i-lucide-check-check h-3 w-3 text-muted-strong"></span>
-            <span>{copy.selectedAccountCount(selectedVisibleCount)}</span>
-          </span>
-        {/if}
-
-        {#if activeTagFilter === 'all' && !selectedVisibleCount}
-          <span class="text-[11px] text-muted-strong">
-            {accounts.length ? copy.accountCount(visibleAccounts.length) : copy.emptyFilterTools}
-          </span>
-        {/if}
-      </div>
+    <div class="min-w-0 flex flex-wrap items-center gap-2">
+      <span class="i-lucide-sliders-horizontal h-3.5 w-3.5 flex-none text-muted-strong"></span>
+      <span class="text-[10px] font-medium uppercase tracking-[0.12em] text-faint">
+        {copy.filtersAndBulkActions}
+      </span>
     </div>
 
+    {#if !accountWorkbenchExpanded && (selectedVisibleCount || activeTagFilter !== 'all')}
+      <span
+        class="theme-workbench-collapsed-summary ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5"
+      >
+        {#if selectedVisibleCount}
+          <span
+            class="theme-workbench-summary-pill inline-flex items-center gap-1 rounded-[0.32rem] border border-black/8 bg-white px-1.5 py-0.5 text-[10px] font-medium leading-none text-ink"
+          >
+            <span class="i-lucide-check-check h-3 w-3 text-muted-strong"></span>
+            <span class="truncate">{copy.selectedAccountCount(selectedVisibleCount)}</span>
+          </span>
+        {/if}
+
+        {#if activeTagFilter !== 'all'}
+          <span
+            class="theme-workbench-summary-pill inline-flex items-center gap-1 rounded-[0.32rem] border border-black/8 bg-white px-1.5 py-0.5 text-[10px] font-medium leading-none text-ink"
+          >
+            <span class="i-lucide-tags h-3 w-3 text-muted-strong"></span>
+            <span class="max-w-[12rem] truncate">{tagFilterLabel(activeTagFilter, tags, copy)}</span
+            >
+          </span>
+        {/if}
+      </span>
+    {/if}
+
     <span
-      class={`theme-workbench-chevron inline-flex h-7 w-7 items-center justify-center rounded-full border border-black/8 bg-white text-black/58 transition-[transform,background-color,color] duration-180 ${
+      class={`theme-workbench-chevron inline-flex h-6 w-6 items-center justify-center rounded-[0.35rem] border border-black/8 bg-white text-black/58 transition-[transform,background-color,color] duration-180 ${
         accountWorkbenchExpanded ? 'rotate-180' : ''
       }`}
     >
@@ -455,7 +464,7 @@
   </button>
 
   {#if accountWorkbenchExpanded}
-    <div id="account-workbench-panel" class="grid gap-3 px-0.5 pb-0.5">
+    <div id="account-workbench-panel" class="grid gap-2 px-2 pb-2 pt-1">
       {#if showAccountFilterTools}
         <div class="grid gap-1.5">
           <p class="text-[10px] font-medium uppercase tracking-[0.08em] text-faint">
@@ -463,7 +472,7 @@
           </p>
           <div class="flex flex-wrap gap-1.5">
             <button
-              class={`theme-filter-chip rounded-full px-2 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
+              class={`theme-filter-chip rounded-[0.32rem] px-1.5 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
                 activeTagFilter === 'all'
                   ? 'theme-filter-chip-active bg-black text-white'
                   : 'theme-filter-chip-idle border border-black/10 bg-black/[0.03] text-black/72 hover:bg-black/[0.06]'
@@ -476,7 +485,7 @@
               {filterChipLabel(accounts, 'all', tags, copy)}
             </button>
             <button
-              class={`theme-filter-chip rounded-full px-2 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
+              class={`theme-filter-chip rounded-[0.32rem] px-1.5 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
                 activeTagFilter === untaggedFilterId
                   ? 'theme-filter-chip-active bg-black text-white'
                   : 'theme-filter-chip-idle border border-black/10 bg-black/[0.03] text-black/72 hover:bg-black/[0.06]'
@@ -490,7 +499,7 @@
             </button>
             {#each tags as tag (tag.id)}
               <button
-                class={`theme-filter-chip rounded-full px-2 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
+                class={`theme-filter-chip rounded-[0.32rem] px-1.5 py-0.75 text-[10px] font-medium leading-none transition-colors duration-140 ${
                   activeTagFilter === tag.id
                     ? 'theme-filter-chip-active bg-black text-white'
                     : 'theme-filter-chip-idle border border-black/10 bg-black/[0.03] text-black/72 hover:bg-black/[0.06]'
@@ -513,23 +522,30 @@
             selectedVisibleCount ? 'theme-selection-toolbar-active' : 'theme-selection-toolbar-idle'
           }`}
         >
-          <div class="grid gap-0.5">
-            <div class="text-[12px] font-medium leading-none text-ink">
-              {selectedVisibleCount
-                ? copy.selectedAccountCount(selectedVisibleCount)
-                : copy.accountCount(visibleAccounts.length)}
-            </div>
+          <div class="flex min-w-0 flex-wrap items-center gap-1.5">
+            {#if selectedVisibleCount}
+              <span
+                class="theme-workbench-summary-pill inline-flex items-center gap-1 rounded-[0.32rem] border border-black/8 bg-white px-1.5 py-0.5 text-[10px] font-medium text-ink"
+              >
+                <span class="i-lucide-check-check h-3 w-3 text-muted-strong"></span>
+                <span>{copy.selectedAccountCount(selectedVisibleCount)}</span>
+              </span>
+            {/if}
+
             {#if activeTagFilter !== 'all'}
-              <div class="text-[9px] uppercase tracking-[0.08em] text-faint">
-                {copy.filterByTag} · {tagFilterLabel(activeTagFilter, tags, copy)}
-              </div>
+              <span
+                class="theme-workbench-summary-pill inline-flex items-center gap-1 rounded-[0.32rem] border border-black/8 bg-white px-1.5 py-0.5 text-[10px] font-medium text-ink"
+              >
+                <span class="i-lucide-tags h-3 w-3 text-muted-strong"></span>
+                <span>{tagFilterLabel(activeTagFilter, tags, copy)}</span>
+              </span>
             {/if}
           </div>
 
           <div class="flex flex-wrap items-center justify-end gap-1.5">
             {#if visibleAccounts.length && !allVisibleSelected}
               <button
-                class="theme-selection-group-button inline-flex min-w-[108px] items-center justify-center gap-1.5 rounded-[0.7rem] border border-black/8 bg-white/[0.72] px-2.5 py-1.5 text-[11px] font-medium leading-none transition-colors duration-140"
+                class="theme-selection-group-button inline-flex min-w-[108px] items-center justify-center gap-1.5 rounded-[0.35rem] border border-black/8 bg-white px-2.5 py-1.5 text-[11px] font-medium leading-none transition-colors duration-140"
                 type="button"
                 onclick={selectAllVisibleAccounts}
                 disabled={loginActionBusy || !visibleAccounts.length}
@@ -541,7 +557,7 @@
 
             {#if selectedVisibleCount}
               <button
-                class="theme-selection-group-button inline-flex min-w-[96px] items-center justify-center gap-1.5 rounded-[0.7rem] border border-black/8 bg-white/[0.72] px-2.5 py-1.5 text-[11px] font-medium leading-none transition-colors duration-140"
+                class="theme-selection-group-button inline-flex min-w-[96px] items-center justify-center gap-1.5 rounded-[0.35rem] border border-black/8 bg-white px-2.5 py-1.5 text-[11px] font-medium leading-none transition-colors duration-140"
                 type="button"
                 onclick={clearSelectedAccounts}
                 disabled={loginActionBusy}
@@ -551,7 +567,7 @@
               </button>
 
               <button
-                class="theme-selection-export inline-flex min-w-[104px] items-center justify-center gap-1.5 rounded-[0.7rem] border border-black/8 bg-white/[0.72] px-2.5 py-1.5 text-[11px] font-medium leading-none text-ink transition-colors duration-140 hover:bg-black/[0.04]"
+                class="theme-selection-export inline-flex min-w-[104px] items-center justify-center gap-1.5 rounded-[0.35rem] border border-black/8 bg-white px-2.5 py-1.5 text-[11px] font-medium leading-none text-ink transition-colors duration-140 hover:bg-black/[0.04]"
                 type="button"
                 onclick={() => void exportCurrentSelection()}
                 disabled={loginActionBusy}
@@ -561,7 +577,7 @@
               </button>
 
               <button
-                class="theme-selection-delete inline-flex min-w-[104px] items-center justify-center gap-1.5 rounded-[0.7rem] border border-red-500/14 bg-red-500/[0.08] px-2.5 py-1.5 text-[11px] font-medium leading-none text-danger transition-colors duration-140 hover:bg-red-500/[0.12]"
+                class="theme-selection-delete inline-flex min-w-[104px] items-center justify-center gap-1.5 rounded-[0.35rem] border border-red-500/14 bg-red-500/[0.08] px-2.5 py-1.5 text-[11px] font-medium leading-none text-danger transition-colors duration-140 hover:bg-red-500/[0.12]"
                 type="button"
                 onclick={() => void removeCurrentSelection()}
                 disabled={loginActionBusy}
@@ -574,7 +590,7 @@
         </div>
       {:else if !showAccountFilterTools}
         <div
-          class="theme-workbench-empty rounded-[0.85rem] border border-dashed border-black/8 bg-white/[0.62] px-3 py-3 text-[12px] text-muted-strong"
+          class="theme-workbench-empty rounded-[0.85rem] border border-dashed border-black/8 bg-white px-3 py-3 text-[12px] text-muted-strong"
         >
           {copy.emptyFilterTools}
         </div>
@@ -584,7 +600,7 @@
 </div>
 
 {#if visibleAccounts.length}
-  <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+  <div class="min-h-0 flex-1 overflow-y-auto px-4">
     <div
       class="grid"
       use:dragHandleZone={{
@@ -611,7 +627,7 @@
         {@const usageBadge = accountUsageBadge(usageErrorByAccountId[account.id], account, copy)}
         {@const assignableTags = availableTagsForAccount(tags, account)}
         <article
-          class={`theme-account-row group grid items-center gap-3 px-3 py-3 transition-[box-shadow,transform,background-color] duration-140 md:grid-cols-[auto_minmax(0,1fr)_auto_auto] ${accountRowTone(
+          class={`theme-account-row group grid items-center gap-3 px-2.5 py-2.5 md:grid-cols-[auto_minmax(0,1fr)_auto_auto] ${accountRowTone(
             account
           )}`}
           animate:flip={{ duration: flipDurationMs }}
@@ -619,24 +635,23 @@
         >
           <div class="flex items-center gap-2">
             <label
-              class={`theme-account-selector inline-flex h-8 w-8 flex-none items-center justify-center rounded-[0.75rem] border transition-[border-color,background-color,box-shadow] duration-180 ${
+              class={`theme-account-selector inline-flex h-7 w-7 flex-none items-center justify-center rounded-[0.35rem] border transition-[border-color,background-color,box-shadow] duration-180 ${
                 selectedAccountIds.includes(account.id)
                   ? 'border-black/18 bg-white text-black'
-                  : 'border-black/10 bg-white/80 text-black/72'
+                  : 'border-black/10 bg-white text-black/72'
               }`}
               title={copy.selectAccount}
             >
-              <input
-                class="theme-account-selector-input h-4 w-4 accent-black"
-                type="checkbox"
+              <Checkbox
                 value={account.id}
-                bind:group={selectedAccountIds}
+                checked={selectedAccountIds.includes(account.id)}
                 disabled={loginActionBusy}
-                aria-label={`${copy.selectAccount} · ${accountEmail(account, copy)}`}
+                ariaLabel={`${copy.selectAccount} · ${accountEmail(account, copy)}`}
+                onCheckedChange={(checked) => setAccountSelected(account.id, checked)}
               />
             </label>
             <button
-              class={`${iconRowButton} h-8 w-8 self-center text-black/42 ${activeTagFilter === 'all' ? 'cursor-grab active:cursor-grabbing' : ''}`}
+              class={`${iconRowButton} h-7 w-7 self-center text-black/42 ${activeTagFilter === 'all' ? 'cursor-grab active:cursor-grabbing' : ''}`}
               type="button"
               use:dragHandle
               aria-label={`${copy.dragSortHandle} · ${accountEmail(account, copy)}`}
@@ -662,14 +677,14 @@
 
             <div class="mt-[-2px] flex min-w-0 flex-wrap items-center gap-1.5">
               <span
-                class={`inline-flex flex-none items-center rounded-full px-2 py-0.75 text-[10px] font-medium ${planTagClass(usageByAccountId[account.id]?.planType)}`}
+                class={`inline-flex flex-none items-center rounded-[0.32rem] px-1.5 py-0.5 text-[10px] font-medium ${planTagClass(usageByAccountId[account.id]?.planType)}`}
               >
                 {planLabel(usageByAccountId[account.id]?.planType)}
               </span>
 
               {#if showWakeAccount(account.id) && hasEnabledWakeSchedule(account.id)}
                 <button
-                  class="theme-wake-schedule-pill inline-flex min-w-0 max-w-full items-center rounded-full border border-sky-500/16 bg-sky-500/10 px-2 py-0.75 text-[10px] text-sky-700 transition-colors duration-140 hover:bg-sky-500/14"
+                  class="theme-wake-schedule-pill inline-flex min-w-0 max-w-full items-center rounded-[0.32rem] border border-sky-500/16 bg-sky-500/10 px-2 py-0.75 text-[10px] text-sky-700 transition-colors duration-140 hover:bg-sky-500/14"
                   type="button"
                   onclick={() => openWakeDialog(account, 'schedule')}
                   disabled={loginActionBusy || usageLoadingByAccountId[account.id]}
@@ -682,7 +697,7 @@
 
               {#each accountTagsForDisplay(tags, account) as tag (tag.id)}
                 <span
-                  class="theme-tag-assigned inline-flex max-w-full items-center rounded-full border border-emerald-500/14 bg-emerald-500/10 px-1.75 py-0.5 text-[10px] font-medium leading-none text-emerald-700"
+                  class="theme-tag-assigned inline-flex max-w-full items-center rounded-[0.32rem] border border-emerald-500/14 bg-emerald-500/10 px-1.75 py-0.5 text-[10px] font-medium leading-none text-emerald-700"
                 >
                   <span class="max-w-28 truncate">{tag.name}</span>
                   <button
@@ -729,8 +744,8 @@
                     }}
                     use:stopFloatingPointerPropagation
                     data-floating-root=""
-                    class="theme-tag-picker-surface z-[999] w-[380px] max-w-[min(380px,calc(100vw-24px))] rounded-[1.1rem] p-2 backdrop-blur-xl"
-                    style="background-color: var(--panel-strong); background-image: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 100%); box-shadow: 0 24px 54px -12px var(--paper-shadow), 0 8px 24px -12px var(--paper-shadow), 0 0 0 1px var(--line-strong), inset 0 1px 0 0 rgba(255,255,255,0.12);"
+                    class="theme-tag-picker-surface z-[999] w-[380px] max-w-[min(380px,calc(100vw-24px))] rounded-[1.1rem] p-2"
+                    style="background-color: var(--panel-strong); box-shadow: var(--elevation-2), 0 0 0 1px var(--line-strong);"
                   >
                     <div class="flex items-center justify-between gap-2 px-2 pb-1.5 pt-1">
                       <span
@@ -947,8 +962,8 @@
                   use:stopFloatingPointerPropagation
                   data-floating-root=""
                   transition:fly={{ y: -6, duration: 200 }}
-                  class="theme-tag-picker-surface z-[999] w-[264px] rounded-[1.25rem] p-1.5 backdrop-blur-xl"
-                  style="background-color: var(--panel-strong); background-image: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 100%); box-shadow: 0 24px 54px -12px var(--paper-shadow), 0 8px 24px -12px var(--paper-shadow), 0 0 0 1px var(--line-strong), inset 0 1px 0 0 rgba(255,255,255,0.12);"
+                  class="theme-tag-picker-surface z-[999] w-[264px] rounded-[1.25rem] p-1.5"
+                  style="background-color: var(--panel-strong); box-shadow: var(--elevation-2), 0 0 0 1px var(--line-strong);"
                 >
                   <div
                     class="px-2.5 pb-2 pt-2.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-faint)]"
@@ -958,7 +973,7 @@
 
                   {#if showWakeAccount(account.id)}
                     <button
-                      class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-all duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+                      class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-colors duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                       type="button"
                       onclick={() => {
                         openWakeDialog(account)
@@ -967,7 +982,7 @@
                       disabled={wakeDialogDisabled(account)}
                     >
                       <span
-                        class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-all duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink group-hover:shadow-sm group-hover:shadow-[var(--paper-shadow)]"
+                        class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-colors duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink"
                       >
                         {#if wakingAccountId === account.id}
                           <span class="i-lucide-loader-circle h-4 w-4 animate-spin"></span>
@@ -980,7 +995,7 @@
                   {/if}
 
                   <button
-                    class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-all duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+                    class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-colors duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                     type="button"
                     onclick={() => {
                       openAccountInIsolatedCodex(account.id)
@@ -989,7 +1004,7 @@
                     disabled={accountLaunchDisabled(account)}
                   >
                     <span
-                      class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-all duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink group-hover:shadow-sm group-hover:shadow-[var(--paper-shadow)]"
+                      class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-colors duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink"
                     >
                       {#if openingIsolatedAccountId === account.id}
                         <span class="i-lucide-loader-circle h-4 w-4 animate-spin"></span>
@@ -1001,7 +1016,7 @@
                   </button>
 
                   <button
-                    class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-danger shadow-none outline-none transition-all duration-140 hover:bg-danger/10 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+                    class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-danger shadow-none outline-none transition-colors duration-140 hover:bg-danger/10 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                     type="button"
                     onclick={() => {
                       removeAccount(account)
@@ -1010,7 +1025,7 @@
                     disabled={loginActionBusy}
                   >
                     <span
-                      class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-danger transition-all duration-140 group-hover:bg-[var(--paper)] group-hover:shadow-sm group-hover:shadow-[var(--paper-shadow)]"
+                      class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-danger transition-colors duration-140 group-hover:bg-[var(--paper)]"
                     >
                       <span class="i-lucide-trash-2 h-4 w-4"></span>
                     </span>
@@ -1020,18 +1035,18 @@
                   {#if assignableTags.length}
                     <div class="mx-2 my-1.5 border-t border-[var(--line)]"></div>
                     <button
-                      class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-all duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98]"
+                      class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-colors duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98]"
                       type="button"
                       onclick={() => openAccountTagMenuFromActionMenu(account.id)}
                     >
                       <span
-                        class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-all duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink group-hover:shadow-sm group-hover:shadow-[var(--paper-shadow)]"
+                        class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-colors duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink"
                       >
                         <span class="i-lucide-tags h-4 w-4"></span>
                       </span>
                       <span class="flex-1">{copy.addTag}</span>
                       <span
-                        class="i-lucide-chevron-right h-4 w-4 text-[var(--ink-faint)] transition-transform group-hover:translate-x-0.5"
+                        class="i-lucide-chevron-right h-4 w-4 text-[var(--ink-faint)] transition-colors"
                       ></span>
                     </button>
                   {/if}
@@ -1049,16 +1064,15 @@
                   use:stopFloatingPointerPropagation
                   data-floating-root=""
                   transition:fly={{ y: -6, duration: 200 }}
-                  class="theme-tag-picker-surface z-[999] w-[210px] rounded-[1.25rem] p-1.5 backdrop-blur-xl"
-                  style="background-color: var(--panel-strong); background-image: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 100%); box-shadow: 0 24px 54px -12px var(--paper-shadow), 0 8px 24px -12px var(--paper-shadow), 0 0 0 1px var(--line-strong), inset 0 1px 0 0 rgba(255,255,255,0.12);"
+                  class="theme-tag-picker-surface z-[999] w-[210px] rounded-[1.25rem] p-1.5"
+                  style="background-color: var(--panel-strong); box-shadow: var(--elevation-2), 0 0 0 1px var(--line-strong);"
                 >
                   <button
-                    class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2 rounded-[0.75rem] border-0 bg-transparent px-2.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-faint)] shadow-none outline-none transition-all duration-140 hover:bg-[var(--surface-hover)] hover:text-ink active:scale-[0.98]"
+                    class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2 rounded-[0.75rem] border-0 bg-transparent px-2.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-faint)] shadow-none outline-none transition-colors duration-140 hover:bg-[var(--surface-hover)] hover:text-ink active:scale-[0.98]"
                     type="button"
                     onclick={returnToAccountActionMenu}
                   >
-                    <span
-                      class="i-lucide-chevron-left h-3.5 w-3.5 flex-none transition-transform group-hover:-translate-x-0.5"
+                    <span class="i-lucide-chevron-left h-3.5 w-3.5 flex-none transition-colors"
                     ></span>
                     {copy.addTag}
                   </button>
@@ -1066,14 +1080,14 @@
                   <div class="mt-1 max-h-[300px] overflow-y-auto pr-1">
                     {#each assignableTags as tag (tag.id)}
                       <button
-                        class="theme-tag-picker-item group flex w-full appearance-none items-center justify-between gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2.5 py-2 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-all duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+                        class="theme-tag-picker-item group flex w-full appearance-none items-center justify-between gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2.5 py-2 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-colors duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                         type="button"
                         onclick={() => void addTagToAccount(account, tag.id)}
                         disabled={loginActionBusy || tagMutationBusy}
                       >
                         <span class="flex-1 truncate">{tag.name}</span>
                         <span
-                          class="theme-tag-picker-plus inline-flex h-6 w-6 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-all duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink group-hover:shadow-sm group-hover:shadow-[var(--paper-shadow)]"
+                          class="theme-tag-picker-plus inline-flex h-6 w-6 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-colors duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink"
                         >
                           <span class="i-lucide-plus h-3.5 w-3.5"></span>
                         </span>
@@ -1110,14 +1124,8 @@
     display: none;
   }
 
-  .tag-picker-item:hover,
-  .tag-picker-item:focus-visible {
-    transform: none;
-  }
-
   .theme-account-divider {
     height: 1px;
-    margin-top: 0.25rem;
     background: rgba(24, 24, 27, 0.08);
   }
 

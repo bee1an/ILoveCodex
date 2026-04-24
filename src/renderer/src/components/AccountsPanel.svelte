@@ -20,6 +20,7 @@
   import AccountsListView from './AccountsListView.svelte'
   import AccountsProvidersView from './AccountsProvidersView.svelte'
   import AccountsTagsView from './AccountsTagsView.svelte'
+  import Checkbox from './Checkbox.svelte'
   import CostStatsView from './CostStatsView.svelte'
   import { taggedAccountCount as taggedAccountCountForAccounts } from './accounts-panel-account'
   import {
@@ -40,6 +41,7 @@
   export let workspaceVersion = '--'
   export let workspaceStatusText = ''
   export let workspaceStatusToneClass = 'text-muted-strong'
+  export let platform: string | undefined
   export let updateSummary = ''
   export let updateActionLabel: string | null = null
   export let runUpdateAction: () => void = () => {}
@@ -265,47 +267,56 @@
 </script>
 
 <section
-  class={`${panelClass} flex h-full min-h-0 flex-1 w-full flex-col gap-4 overflow-hidden`}
+  class={`${panelClass} flex h-full min-h-0 flex-1 w-full flex-col gap-0 overflow-hidden`}
   use:reveal={{ delay: 0.05 }}
   use:cascadeIn={{ selector: '[data-panel-motion]' }}
 >
-  <div class="flex flex-wrap items-center justify-between gap-3" data-panel-motion>
-    <div class="min-w-0 flex flex-1 items-center gap-3">
-      <div class="min-w-0 grid gap-0.5">
-        <div class="min-w-0 flex items-center gap-2">
-          <span class="text-[13px] font-semibold tracking-[0.04em] text-ink/80">CodexDock</span>
-          <span
-            class="theme-version-pill inline-flex items-center rounded-md bg-black/[0.05] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-strong"
-          >
-            v{workspaceVersion}
-          </span>
-          {#if workspaceStatusText}
+  <div
+    class={`workspace-topbar flex min-h-12 flex-wrap items-center justify-between gap-2 py-0 pr-4 ${
+      platform === 'darwin' ? 'workspace-topbar-mac pl-[5.5rem]' : 'workspace-topbar-standard pl-4'
+    }`}
+    style="-webkit-app-region: drag; app-region: drag;"
+    data-panel-motion
+  >
+    <div class="min-w-0 flex flex-1 items-center self-stretch">
+      <div class="workspace-meta min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <span class="workspace-title text-[13px] font-semibold tracking-[-0.015em] text-ink">
+          CodexDock
+        </span>
+        <span
+          class="theme-version-pill inline-flex items-center rounded-[0.3rem] border border-black/6 bg-transparent px-1.5 py-0.5 text-[9px] font-medium tabular-nums text-faint"
+        >
+          v{workspaceVersion}
+        </span>
+        {#if workspaceStatusText}
+          <span class="inline-flex min-w-0 items-center gap-1.5">
+            <span class="h-1.5 w-1.5 flex-none rounded-full bg-success"></span>
             <span
-              class={`min-w-0 flex-1 truncate text-[11px] ${workspaceStatusToneClass}`}
+              class={`min-w-0 truncate text-[10px] ${workspaceStatusToneClass}`}
               aria-live="polite"
             >
               {workspaceStatusText}
             </span>
-          {/if}
-        </div>
+          </span>
+        {/if}
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center justify-end gap-2">
+    <div class="topbar-actions flex flex-wrap items-center justify-end gap-1.5">
       {#if updateSummary}
-        <span class="text-xs text-muted-strong" aria-live="polite">{updateSummary}</span>
+        <span
+          class="topbar-update-note hidden max-w-[28rem] truncate text-[11px] text-muted-strong xl:inline"
+          aria-live="polite">{updateSummary}</span
+        >
       {/if}
 
       {#if showLocalMockToggle}
         <label
-          class="inline-flex items-center gap-2 rounded-[0.8rem] border border-black/8 bg-black/[0.03] px-3 py-2 text-xs text-muted-strong"
+          class="topbar-mock-toggle inline-flex items-center gap-1.5 rounded-[0.35rem] border border-black/8 bg-black/[0.03] px-2 py-1.5 text-[11px] text-muted-strong"
         >
-          <input
-            type="checkbox"
-            class="h-4 w-4 rounded border border-black/14"
+          <Checkbox
             checked={showLocalMockData}
-            onchange={(event) =>
-              updateShowLocalMockData((event.currentTarget as HTMLInputElement).checked)}
+            onCheckedChange={(checked) => updateShowLocalMockData(checked)}
           />
           <span>{copy.showLocalMockData}</span>
         </label>
@@ -318,12 +329,12 @@
       {/if}
 
       <div
-        class="theme-toolbar inline-flex items-center gap-1 rounded-[0.8rem] border border-black/8 bg-black/[0.03] p-1"
+        class="theme-toolbar inline-flex items-center gap-0 rounded-[0.45rem] border border-black/8 bg-black/[0.03] p-0.5"
       >
         <button
-          class={`theme-view-toggle inline-flex items-center gap-2 rounded-[0.7rem] px-3 py-2 text-sm font-medium transition-colors duration-140 ${
+          class={`theme-view-toggle inline-flex items-center gap-1.5 rounded-[0.35rem] px-2.5 py-1.5 text-xs font-medium transition-colors duration-140 ${
             currentView === 'accounts'
-              ? 'theme-view-toggle-active bg-white text-ink'
+              ? 'theme-view-toggle-active bg-black/[0.06] text-ink'
               : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
           }`}
           type="button"
@@ -331,13 +342,13 @@
             currentView = 'accounts'
           }}
         >
-          <span class="i-lucide-layout-list h-4 w-4"></span>
+          <span class="i-lucide-layout-list h-3.5 w-3.5"></span>
           <span>{copy.accountCount(accounts.length)}</span>
         </button>
         <button
-          class={`theme-view-toggle inline-flex items-center gap-2 rounded-[0.7rem] px-3 py-2 text-sm font-medium transition-colors duration-140 ${
+          class={`theme-view-toggle inline-flex items-center gap-1.5 rounded-[0.35rem] px-2.5 py-1.5 text-xs font-medium transition-colors duration-140 ${
             currentView === 'providers'
-              ? 'theme-view-toggle-active bg-white text-ink'
+              ? 'theme-view-toggle-active bg-black/[0.06] text-ink'
               : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
           }`}
           type="button"
@@ -345,13 +356,13 @@
             currentView = 'providers'
           }}
         >
-          <span class="i-lucide-plug-zap h-4 w-4"></span>
+          <span class="i-lucide-plug-zap h-3.5 w-3.5"></span>
           <span>{copy.providerCount(providers.length)}</span>
         </button>
         <button
-          class={`theme-view-toggle inline-flex items-center gap-2 rounded-[0.7rem] px-3 py-2 text-sm font-medium transition-colors duration-140 ${
+          class={`theme-view-toggle inline-flex items-center gap-1.5 rounded-[0.35rem] px-2.5 py-1.5 text-xs font-medium transition-colors duration-140 ${
             currentView === 'tags'
-              ? 'theme-view-toggle-active bg-white text-ink'
+              ? 'theme-view-toggle-active bg-black/[0.06] text-ink'
               : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
           }`}
           type="button"
@@ -359,13 +370,13 @@
             currentView = 'tags'
           }}
         >
-          <span class="i-lucide-tags h-4 w-4"></span>
+          <span class="i-lucide-tags h-3.5 w-3.5"></span>
           <span>{copy.tagManager}</span>
         </button>
         <button
-          class={`theme-view-toggle inline-flex items-center gap-2 rounded-[0.7rem] px-3 py-2 text-sm font-medium transition-colors duration-140 ${
+          class={`theme-view-toggle inline-flex items-center gap-1.5 rounded-[0.35rem] px-2.5 py-1.5 text-xs font-medium transition-colors duration-140 ${
             currentView === 'stats'
-              ? 'theme-view-toggle-active bg-white text-ink'
+              ? 'theme-view-toggle-active bg-black/[0.06] text-ink'
               : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
           }`}
           type="button"
@@ -373,7 +384,7 @@
             currentView = 'stats'
           }}
         >
-          <span class="i-lucide-chart-no-axes-combined h-4 w-4"></span>
+          <span class="i-lucide-chart-no-axes-combined h-3.5 w-3.5"></span>
           <span>{copy.tokenStats}</span>
         </button>
       </div>
@@ -511,10 +522,31 @@
 </section>
 
 <style>
+  .workspace-topbar {
+    border-bottom: 0;
+  }
+
+  .workspace-meta {
+    opacity: 0.76;
+  }
+
+  .workspace-title {
+    line-height: 1;
+  }
+
+  .topbar-actions,
+  .topbar-actions :global(*) {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .theme-view-toggle {
+    position: relative;
+  }
+
   :global(html[data-theme='dark']) .theme-view-toggle-active {
     background: var(--panel-strong) !important;
     color: var(--ink) !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
   }
 
   :global(html[data-theme='dark']) .theme-view-toggle-idle {
@@ -523,5 +555,9 @@
 
   :global(html[data-theme='dark']) .theme-view-toggle-idle:hover {
     background: var(--surface-hover) !important;
+  }
+
+  :global(html[data-theme='dark']) .workspace-topbar {
+    border-bottom-color: transparent;
   }
 </style>

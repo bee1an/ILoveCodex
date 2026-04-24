@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.7 - 2026-04-24
+
+This patch release refreshes the CodexDock branding and documentation assets.
+
+- Updated the app logo and generated matching PNG, ICNS, ICO, renderer, and documentation assets from the final CodexDock icon.
+- Refreshed the README files with the new logo and annotated `cdock` command examples.
+- Replaced the project screenshot with the latest desktop capture.
+
 ## 0.3.6 - 2026-04-24
 
 This patch release renames the project to CodexDock and switches the command-line entrypoint to `cdock`.

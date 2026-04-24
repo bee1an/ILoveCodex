@@ -26,6 +26,7 @@
   import { normalizeStatsDisplaySettings } from '../../../shared/codex'
   import { buildInstanceConsumptionEntries } from './cost-stats-data'
   import type { LocalizedCopy } from './app-view'
+  import Checkbox from './Checkbox.svelte'
   import { cascadeIn, reveal } from './gsap-motion'
 
   Chart.register(
@@ -831,7 +832,7 @@
   use:reveal={{ delay: 0.02 }}
 >
   <section
-    class="stats-stage rounded-2xl border px-4 py-4 sm:px-5 sm:py-5"
+    class="stats-stage rounded-[0.45rem] border px-4 py-4 sm:px-5 sm:py-5"
     use:cascadeIn={{
       selector: '[data-motion-item]'
     }}
@@ -851,7 +852,7 @@
 
       <div class="relative flex items-center gap-2" data-motion-item>
         <button
-          class={`${compactGhostButton} stats-config-button h-11 w-11 rounded-2xl p-0`}
+          class={`${compactGhostButton} stats-config-button h-11 w-11 rounded-[0.45rem] p-0`}
           type="button"
           aria-label={copy.displayConfig}
           aria-expanded={showStatsDisplayPopover}
@@ -864,7 +865,7 @@
 
         {#if showStatsDisplayPopover}
           <div
-            class="stats-config-popover absolute right-0 top-[calc(100%+0.5rem)] z-20 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border px-4 py-4 shadow-[0_18px_48px_rgba(15,23,42,0.16)]"
+            class="stats-config-popover absolute right-0 top-[calc(100%+0.5rem)] z-20 w-[min(20rem,calc(100vw-2rem))] rounded-[0.45rem] border px-4 py-4"
             role="dialog"
             aria-label={copy.displayConfig}
             use:reveal={{ y: -4, duration: 0.12 }}
@@ -876,18 +877,12 @@
             <div class="grid gap-2">
               {#each [{ key: 'dailyTrend', label: copy.dailyTrend }, { key: 'modelBreakdown', label: copy.modelBreakdown }, { key: 'instanceUsage', label: copy.instanceUsage }] as option (option.key)}
                 <label
-                  class="stats-toggle-row flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm text-ink"
+                  class="stats-toggle-row flex items-center justify-between gap-3 rounded-[0.35rem] px-3 py-2 text-sm text-ink"
                 >
                   <span class="font-medium">{option.label}</span>
-                  <input
-                    class="h-4 w-4 accent-black"
-                    type="checkbox"
+                  <Checkbox
                     checked={statsDisplayDraft[option.key]}
-                    onchange={(event) =>
-                      setStatsDisplay(
-                        option.key,
-                        (event.currentTarget as HTMLInputElement).checked
-                      )}
+                    onCheckedChange={(checked) => setStatsDisplay(option.key, checked)}
                   />
                 </label>
               {/each}
@@ -896,7 +891,7 @@
         {/if}
 
         <button
-          class={`${compactGhostButton} stats-refresh-button h-11 rounded-2xl px-4`}
+          class={`${compactGhostButton} stats-refresh-button h-11 rounded-[0.45rem] px-4`}
           type="button"
           onclick={() => loadDetail(true)}
           disabled={loadingDetail}
@@ -913,7 +908,7 @@
       <div class="grid gap-4" data-motion-item>
         <div class="grid gap-3 sm:grid-cols-2">
           <div
-            class="stats-metric-block stats-metric-tokens group grid gap-2 rounded-2xl px-4 py-4 sm:px-5"
+            class="stats-metric-block stats-metric-tokens group grid gap-2 rounded-[0.45rem] px-4 py-4 sm:px-5"
             data-motion-item
           >
             <div class="flex items-center justify-between gap-3">
@@ -940,7 +935,7 @@
           </div>
 
           <div
-            class="stats-metric-block stats-metric-cost group grid gap-2 rounded-2xl px-4 py-4 sm:px-5"
+            class="stats-metric-block stats-metric-cost group grid gap-2 rounded-[0.45rem] px-4 py-4 sm:px-5"
             data-motion-item
           >
             <div class="flex items-center justify-between gap-3">
@@ -968,7 +963,10 @@
         </div>
       </div>
 
-      <div class="stats-info-rail grid gap-3 rounded-2xl border px-4 py-4 sm:px-5" data-motion-item>
+      <div
+        class="stats-info-rail grid gap-3 rounded-[0.45rem] border px-4 py-4 sm:px-5"
+        data-motion-item
+      >
         <div class="grid gap-1">
           <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-faint">
             {copy.updatedAt}
@@ -1001,20 +999,20 @@
 
         {#if detailError}
           <div
-            class="rounded-2xl border border-danger/18 bg-danger/6 px-3 py-3 text-sm text-danger"
+            class="rounded-[0.45rem] border border-danger/18 bg-danger/6 px-3 py-3 text-sm text-danger"
           >
             {detailError}
           </div>
         {:else if loadingDetail && !detail}
           <div
-            class="flex items-center gap-2 rounded-2xl border border-line bg-panel-strong/50 px-3 py-3 text-sm text-muted-strong"
+            class="flex items-center gap-2 rounded-[0.45rem] border border-line bg-panel-strong/50 px-3 py-3 text-sm text-muted-strong"
           >
             <span class="i-lucide-loader-circle h-4 w-4 animate-spin"></span>
             <span>{copy.refreshing}</span>
           </div>
         {:else if !summaryHasData(selectedSummary)}
           <div
-            class="rounded-2xl border border-dashed border-line bg-panel-strong/35 px-3 py-3 text-sm text-muted-strong"
+            class="rounded-[0.45rem] border border-dashed border-line bg-panel-strong/35 px-3 py-3 text-sm text-muted-strong"
           >
             {copy.tokenStatsNoData}
           </div>
@@ -1022,7 +1020,7 @@
 
         {#if warningMessages.length}
           <div
-            class="grid gap-2 rounded-2xl border border-danger/18 bg-danger/6 px-3 py-3 text-sm text-danger"
+            class="grid gap-2 rounded-[0.45rem] border border-danger/18 bg-danger/6 px-3 py-3 text-sm text-danger"
           >
             {#each warningMessages as message (message)}
               <p>{message}</p>
@@ -1043,7 +1041,7 @@
 
     {#if statsDisplayDraft.modelBreakdown}
       <section
-        class="stats-surface flex flex-col rounded-2xl border px-4 py-4 sm:px-5"
+        class="stats-surface flex flex-col rounded-[0.45rem] border px-4 py-4 sm:px-5"
         use:reveal={{ delay: 0.04 }}
       >
         <div class="flex items-center justify-between gap-3 border-b border-line/70 pb-3">
@@ -1055,7 +1053,7 @@
         </div>
 
         {#if modelBreakdowns.length}
-          <div class="stats-chart-shell mt-4 rounded-xl border px-3 py-4 sm:px-4">
+          <div class="stats-chart-shell mt-4 rounded-[0.35rem] border px-3 py-4 sm:px-4">
             <div class="stats-model-chart-canvas" style={`min-height: ${modelChartHeight}px`}>
               <canvas bind:this={modelCanvas} aria-label={copy.modelBreakdown}></canvas>
             </div>
@@ -1071,7 +1069,7 @@
 
     {#if statsDisplayDraft.instanceUsage}
       <section
-        class="stats-surface flex flex-col rounded-2xl border px-4 py-4 sm:px-5"
+        class="stats-surface flex flex-col rounded-[0.45rem] border px-4 py-4 sm:px-5"
         use:reveal={{ delay: 0.08 }}
       >
         <div class="flex items-center justify-between gap-3 border-b border-line/70 pb-3">
@@ -1083,7 +1081,7 @@
         </div>
 
         {#if instanceUsageRows.length}
-          <div class="stats-chart-shell mt-4 rounded-xl border px-3 py-4 sm:px-4">
+          <div class="stats-chart-shell mt-4 rounded-[0.35rem] border px-3 py-4 sm:px-4">
             <div class="stats-model-chart-canvas" style={`min-height: ${instanceChartHeight}px`}>
               <canvas bind:this={instanceCanvas} aria-label={copy.instanceUsage}></canvas>
             </div>
@@ -1100,7 +1098,7 @@
 
   {#if statsDisplayDraft.dailyTrend}
     <section
-      class="stats-surface flex flex-col rounded-2xl border px-4 py-4 sm:px-5"
+      class="stats-surface flex flex-col rounded-[0.45rem] border px-4 py-4 sm:px-5"
       use:reveal={{ delay: 0.12 }}
     >
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line/70 pb-3">
@@ -1117,7 +1115,7 @@
       </div>
 
       {#if chartDaily.length}
-        <div class="stats-chart-shell mt-4 rounded-xl border px-3 py-4 sm:px-4">
+        <div class="stats-chart-shell mt-4 rounded-[0.35rem] border px-3 py-4 sm:px-4">
           <div class="stats-chart-canvas">
             <canvas bind:this={trendCanvas} aria-label={copy.dailyTrend}></canvas>
           </div>
@@ -1134,19 +1132,21 @@
 
 <style>
   .stats-stage {
-    background: var(--panel-strong);
-    border-color: var(--line);
-    box-shadow: 0 4px 20px -6px var(--paper-shadow);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
   }
 
   .stats-surface {
-    background: var(--panel-strong);
+    background: transparent;
     border-color: var(--line);
+    box-shadow: none;
   }
 
   .stats-info-rail {
     background: var(--surface-soft);
     border-color: var(--line);
+    box-shadow: none;
   }
 
   .stats-refresh-button,
@@ -1163,6 +1163,7 @@
   .stats-metric-block {
     background: var(--surface-soft);
     border: 1px solid var(--line);
+    box-shadow: none;
     transition:
       background-color 140ms ease,
       border-color 140ms ease;
@@ -1176,10 +1177,12 @@
   .stats-config-popover {
     background: var(--panel-strong);
     border-color: var(--line);
+    box-shadow: var(--elevation-1);
   }
 
   .stats-toggle-row {
     background: var(--surface-soft);
+    box-shadow: none;
     transition: background-color 140ms ease;
   }
 
@@ -1190,6 +1193,7 @@
   .stats-chart-shell {
     background: var(--surface-soft);
     border-color: var(--line);
+    box-shadow: none;
   }
 
   .stats-chart-canvas {
@@ -1227,8 +1231,8 @@
   }
 
   :global(html[data-theme='dark']) .stats-stage {
-    background: var(--surface-soft) !important;
-    border-color: var(--line) !important;
+    background: transparent !important;
+    border-color: transparent !important;
     box-shadow: none !important;
   }
 

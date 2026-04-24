@@ -63,7 +63,9 @@ function defaultSettings(): AppSettings {
     checkForUpdatesOnStartup: true,
     codexDesktopExecutablePath: '',
     showLocalMockData: true,
-    statsDisplay: defaultStatsDisplaySettings()
+    statsDisplay: defaultStatsDisplaySettings(),
+    toolbarIconMovable: true,
+    collapsedToolbarIconDefaultPosition: true
   }
 }
 

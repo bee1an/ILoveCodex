@@ -8,6 +8,12 @@
     type LocalizedCopy
   } from './app-view'
 
+  type ThemeTransitionOrigin = {
+    x?: number
+    y?: number
+    target?: HTMLElement | null
+  }
+
   export let appMeta: AppMeta
   export let updateState: AppUpdateState
   export let language: AppLanguage
@@ -16,10 +22,20 @@
   export let compactGhostButton: string
   export let iconToolbarButton: string
   export let updateLanguage: (language: AppLanguage) => void
-  export let updateTheme: (theme: AppTheme) => void
+  export let updateTheme: (theme: AppTheme, origin?: ThemeTransitionOrigin) => void
   export let openExternalLink: (url?: string) => void
   export let downloadUpdate: () => void
   export let installUpdate: () => void
+
+  const themeOriginFromClick = (event: MouseEvent): ThemeTransitionOrigin => {
+    const target = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
+
+    if (event.detail > 0) {
+      return { x: event.clientX, y: event.clientY, target }
+    }
+
+    return { target }
+  }
 
   const updateActionLabel = (): string | null => {
     switch (updateState.status) {
@@ -117,7 +133,7 @@
 
       <button
         class={iconToolbarButton}
-        on:click={() => updateTheme(nextTheme(theme))}
+        on:click={(event) => updateTheme(nextTheme(theme), themeOriginFromClick(event))}
         aria-label={copy.switchTheme(themeTitle(theme, copy))}
         title={copy.switchTheme(themeTitle(theme, copy))}
       >
