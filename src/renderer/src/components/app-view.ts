@@ -159,6 +159,9 @@ export const messages = {
     weeklyQuota: '周限额',
     sessionReset: '5小时重置',
     weeklyReset: '周限额重置',
+    subscriptionExpiresAt: '订阅到期',
+    subscriptionRemaining: (value: string) => `订阅剩余 ${value}`,
+    subscriptionExpiredAgo: (value: string) => `订阅已过期 ${value}`,
     openCodex: '打开 Codex',
     openCodexIsolated: '多开 Codex',
     openCustomProvider: '启动提供商',
@@ -497,6 +500,9 @@ export const messages = {
     weeklyQuota: 'Weekly',
     sessionReset: 'Session resets',
     weeklyReset: 'Weekly resets',
+    subscriptionExpiresAt: 'Subscription expires',
+    subscriptionRemaining: (value: string) => `Subscription ${value} left`,
+    subscriptionExpiredAgo: (value: string) => `Subscription expired ${value} ago`,
     openCodex: 'Open Codex',
     openCodexIsolated: 'Open isolated Codex',
     openCustomProvider: 'Launch provider',
@@ -748,6 +754,89 @@ export function planTagClass(planType?: string | null): string {
       return 'theme-plan-enterprise bg-rose-500/14 text-rose-700'
     default:
       return 'theme-plan-neutral bg-black/[0.05] text-black/72'
+  }
+}
+
+function formatDurationCompact(ms: number, language: AppLanguage): string {
+  const absoluteMs = Math.abs(ms)
+  const dayMs = 24 * 60 * 60 * 1000
+  const hourMs = 60 * 60 * 1000
+  const minuteMs = 60 * 1000
+  const days = Math.floor(absoluteMs / dayMs)
+  const hours = Math.floor((absoluteMs % dayMs) / hourMs)
+  const minutes = Math.floor((absoluteMs % hourMs) / minuteMs)
+
+  if (language === 'en') {
+    if (days > 0) {
+      return `${days}d ${hours}h`
+    }
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`
+    }
+    return `${minutes}m`
+  }
+
+  if (days > 0) {
+    return `${days}天${hours}小时`
+  }
+  if (hours > 0) {
+    return `${hours}小时${minutes}分钟`
+  }
+  return `${minutes}分钟`
+}
+
+export function formatSubscriptionDateTime(
+  subscriptionExpiresAt: string | undefined,
+  language: AppLanguage
+): string | null {
+  if (!subscriptionExpiresAt) {
+    return null
+  }
+
+  const parsed = Date.parse(subscriptionExpiresAt)
+  if (Number.isNaN(parsed)) {
+    return subscriptionExpiresAt
+  }
+
+  return new Intl.DateTimeFormat(language, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(new Date(parsed))
+}
+
+export function accountSubscriptionBadge(
+  subscriptionExpiresAt: string | undefined,
+  language: AppLanguage,
+  copy: Pick<
+    LocalizedCopy,
+    'subscriptionExpiresAt' | 'subscriptionRemaining' | 'subscriptionExpiredAgo'
+  >,
+  now = Date.now()
+): { label: string; title: string; expired: boolean; critical: boolean } | null {
+  if (!subscriptionExpiresAt) {
+    return null
+  }
+
+  const parsed = Date.parse(subscriptionExpiresAt)
+  if (Number.isNaN(parsed)) {
+    return null
+  }
+
+  const remainingMs = parsed - now
+  const duration = formatDurationCompact(remainingMs, language)
+  const dateTime =
+    formatSubscriptionDateTime(subscriptionExpiresAt, language) ?? subscriptionExpiresAt
+  const expired = remainingMs < 0
+
+  return {
+    label: expired ? copy.subscriptionExpiredAgo(duration) : copy.subscriptionRemaining(duration),
+    title: `${copy.subscriptionExpiresAt}: ${dateTime}`,
+    expired,
+    critical: remainingMs <= 3 * 24 * 60 * 60 * 1000
   }
 }
 

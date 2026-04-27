@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -28,17 +28,22 @@ function createJwt(payload: Record<string, unknown>): string {
 
 function createAuthPayload(
   accountId: string,
-  identity: { email?: string; sub?: string } = {}
+  identity: { email?: string; sub?: string; subscriptionExpiresAt?: string } = {}
 ): CodexAuthPayload {
   return {
     auth_mode: 'chatgpt',
     tokens: {
       account_id: accountId,
       id_token:
-        identity.email || identity.sub
+        identity.email || identity.sub || identity.subscriptionExpiresAt
           ? createJwt({
               email: identity.email,
-              sub: identity.sub
+              sub: identity.sub,
+              'https://api.openai.com/auth': identity.subscriptionExpiresAt
+                ? {
+                    chatgpt_subscription_active_until: identity.subscriptionExpiresAt
+                  }
+                : undefined
             })
           : undefined,
       refresh_token: `refresh-${accountId}`
@@ -128,6 +133,43 @@ describe('CodexAccountStore', () => {
     expect(refreshed.id).toBe('user-a:acct-a')
     expect(snapshot.wakeSchedulesByAccountId[refreshed.id]?.times).toEqual(['09:00'])
     expect(snapshot.wakeSchedulesByAccountId[account.id]).toBeUndefined()
+  })
+
+  it('exposes subscription expiration from auth token claims', async () => {
+    const store = await createStore()
+
+    const account = await store.importAuthPayload(
+      createAuthPayload('acct-a', {
+        email: 'a@example.com',
+        subscriptionExpiresAt: '2026-05-15T04:28:55.000Z'
+      })
+    )
+    const snapshot = await store.getSnapshot(false)
+
+    expect(account.subscriptionExpiresAt).toBe('2026-05-15T04:28:55.000Z')
+    expect(snapshot.accounts[0]?.subscriptionExpiresAt).toBe('2026-05-15T04:28:55.000Z')
+  })
+
+  it('preserves imported subscription expiration when synced auth lacks the claim', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'codexdock-store-'))
+    createdDirectories.push(directory)
+    const codexHome = join(directory, '.codex')
+    await mkdir(codexHome, { recursive: true })
+    const store = new CodexAccountStore(directory, createPlatform(), codexHome)
+
+    const account = await store.importAuthPayload(
+      createAuthPayload('acct-a', { email: 'a@example.com' }),
+      { subscriptionExpiresAt: '2026-05-15T04:28:55.000Z' }
+    )
+    const currentAuth = createAuthPayload('acct-a', { email: 'a@example.com' })
+    currentAuth.tokens!.refresh_token = 'refresh-acct-a-next'
+    await writeFile(join(codexHome, 'auth.json'), JSON.stringify(currentAuth), 'utf8')
+
+    const result = await store.importCurrentAuthPayloadForAccount(account.id)
+    const snapshot = await store.getSnapshot(false)
+
+    expect(result?.account.subscriptionExpiresAt).toBe('2026-05-15T04:28:55.000Z')
+    expect(snapshot.accounts[0]?.subscriptionExpiresAt).toBe('2026-05-15T04:28:55.000Z')
   })
 
   it('rejects legacy safeStorage accounts with a re-import hint', async () => {

@@ -1482,7 +1482,8 @@ describe('createCodexServices', () => {
                 }
               }),
               email: 'sub2api@example.com',
-              plan_type: 'pro'
+              plan_type: 'pro',
+              subscription_expires_at: '2026-05-15T04:28:55.000Z'
             },
             concurrency: 0,
             priority: 0
@@ -1494,7 +1495,8 @@ describe('createCodexServices', () => {
     const snapshot = await services.getSnapshot()
     expect(snapshot.accounts[0]).toMatchObject({
       email: 'sub2api@example.com',
-      accountId: 'acct-sub2api'
+      accountId: 'acct-sub2api',
+      subscriptionExpiresAt: '2026-05-15T04:28:55.000Z'
     })
   })
 

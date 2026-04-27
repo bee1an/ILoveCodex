@@ -242,6 +242,7 @@ export interface AccountSummary {
   email?: string
   name?: string
   accountId?: string
+  subscriptionExpiresAt?: string
   tagIds: string[]
   createdAt: string
   updatedAt: string
@@ -259,6 +260,7 @@ export interface CurrentSessionSummary {
   email?: string
   name?: string
   accountId?: string
+  subscriptionExpiresAt?: string
   lastRefresh?: string
   storedAccountId?: string
 }

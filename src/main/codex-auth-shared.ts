@@ -13,7 +13,11 @@ import type {
   PortOccupant
 } from '../shared/codex'
 import type { CodexPlatformAdapter, ProtectedPayload } from '../shared/codex-platform'
-import { decodeJwtPayload, resolveChatGptAccountIdFromTokens } from '../shared/openai-auth'
+import {
+  decodeJwtPayload,
+  resolveChatGptAccountIdFromTokens,
+  resolveChatGptSubscriptionExpiresAtFromTokens
+} from '../shared/openai-auth'
 import {
   defaultStatsDisplaySettings,
   normalizeLocalGatewaySettings,
@@ -324,16 +328,21 @@ export async function refreshCodexAuthPayload(
 
 function summarizeAuth(
   auth: CodexAuthPayload
-): Pick<AccountSummary, 'email' | 'name' | 'accountId'> {
+): Pick<AccountSummary, 'email' | 'name' | 'accountId' | 'subscriptionExpiresAt'> {
   const payload = decodeJwtPayload(auth.tokens?.id_token)
   const email = typeof payload.email === 'string' ? payload.email : undefined
   const name = typeof payload.name === 'string' ? payload.name : undefined
   const accountId = extractChatGptAccountId(auth)
+  const subscriptionExpiresAt = resolveChatGptSubscriptionExpiresAtFromTokens(
+    auth.tokens?.id_token,
+    auth.tokens?.access_token
+  )
 
   return {
     email,
     name,
-    accountId
+    accountId,
+    subscriptionExpiresAt
   }
 }
 
@@ -414,6 +423,7 @@ function toAccountSummary(account: PersistedAccount): AccountSummary {
     email: account.email,
     name: account.name,
     accountId: account.accountId,
+    subscriptionExpiresAt: account.subscriptionExpiresAt,
     tagIds: account.tagIds,
     createdAt: account.createdAt,
     updatedAt: account.updatedAt,

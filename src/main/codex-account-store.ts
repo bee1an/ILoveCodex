@@ -17,6 +17,7 @@ import { normalizeLocalGatewaySettings, normalizeStatsDisplaySettings } from '..
 import {
   type CodexAuthPayload,
   type LegacyPersistedState,
+  type PersistedAccount,
   type PersistedState,
   defaultState,
   dedupeAccountTagIds,
@@ -58,7 +59,7 @@ export class CodexAccountStore {
       }
 
       return {
-        accounts: state.accounts.map(toAccountSummary),
+        accounts: state.accounts.map((account) => this.toAccountSummary(account)),
         providers: [],
         tags: state.tags,
         codexInstances: [],
@@ -385,7 +386,9 @@ export class CodexAccountStore {
 
       try {
         const auth = JSON.parse(this.unprotect(account.authPayload)) as CodexAuthPayload
-        imported = await this.importAuthPayload(auth)
+        imported = await this.importAuthPayload(auth, {
+          subscriptionExpiresAt: account.subscriptionExpiresAt
+        })
       } catch {
         // Skip accounts that cannot be read from another profile, for example legacy safeStorage rows.
         continue
@@ -426,8 +429,11 @@ export class CodexAccountStore {
     return importedCount
   }
 
-  async importAuthPayload(auth: CodexAuthPayload): Promise<AccountSummary> {
-    return this.runStateTask(() => this.upsertAccount(auth, false))
+  async importAuthPayload(
+    auth: CodexAuthPayload,
+    metadata: Partial<Pick<AccountSummary, 'subscriptionExpiresAt'>> = {}
+  ): Promise<AccountSummary> {
+    return this.runStateTask(() => this.upsertAccount(auth, false, metadata))
   }
 
   async activateAccount(accountId: string): Promise<void> {
@@ -506,7 +512,7 @@ export class CodexAccountStore {
       const rawAuth = JSON.stringify(currentAuth)
       if (this.unprotect(existing.authPayload) === rawAuth) {
         return {
-          account: toAccountSummary(existing),
+          account: this.toAccountSummary(existing),
           auth: currentAuth,
           changed: false
         }
@@ -555,6 +561,8 @@ export class CodexAccountStore {
       existing.email = summary.email
       existing.name = summary.name
       existing.accountId = summary.accountId
+      existing.subscriptionExpiresAt =
+        summary.subscriptionExpiresAt ?? existing.subscriptionExpiresAt
       existing.tagIds = dedupeAccountTagIds(existing.tagIds ?? [])
       existing.updatedAt = now
       existing.authPayload = this.protect(rawAuth)
@@ -567,7 +575,7 @@ export class CodexAccountStore {
       await this.writeState(state)
 
       return {
-        account: toAccountSummary(existing),
+        account: this.toAccountSummary(existing),
         auth: currentAuth,
         changed: true
       }
@@ -583,7 +591,7 @@ export class CodexAccountStore {
         throw new Error('Account not found.')
       }
 
-      return toAccountSummary(account)
+      return this.toAccountSummary(account)
     })
   }
 
@@ -670,6 +678,7 @@ export class CodexAccountStore {
         email: summary.email,
         name: summary.name,
         accountId: summary.accountId,
+        subscriptionExpiresAt: summary.subscriptionExpiresAt,
         lastRefresh: auth.last_refresh,
         storedAccountId
       }
@@ -680,7 +689,8 @@ export class CodexAccountStore {
 
   private async upsertAccount(
     auth: CodexAuthPayload,
-    makeActive: boolean
+    makeActive: boolean,
+    metadata: Partial<Pick<AccountSummary, 'subscriptionExpiresAt'>> = {}
   ): Promise<AccountSummary> {
     const state = await this.readState()
     const identity = resolveAccountId(auth)
@@ -688,6 +698,10 @@ export class CodexAccountStore {
     const now = new Date().toISOString()
     const payload = this.protect(JSON.stringify(auth))
     const existing = findMatchingAccount(state.accounts, auth)
+    const subscriptionExpiresAt =
+      metadata.subscriptionExpiresAt ??
+      summary.subscriptionExpiresAt ??
+      existing?.subscriptionExpiresAt
 
     if (existing) {
       const previousId = existing.id
@@ -729,6 +743,7 @@ export class CodexAccountStore {
       existing.email = summary.email
       existing.name = summary.name
       existing.accountId = summary.accountId
+      existing.subscriptionExpiresAt = subscriptionExpiresAt
       existing.tagIds = dedupeAccountTagIds(existing.tagIds ?? [])
       existing.updatedAt = now
       existing.authPayload = payload
@@ -741,6 +756,7 @@ export class CodexAccountStore {
         email: summary.email,
         name: summary.name,
         accountId: summary.accountId,
+        subscriptionExpiresAt,
         tagIds: [],
         createdAt: now,
         updatedAt: now,
@@ -764,7 +780,30 @@ export class CodexAccountStore {
       throw new Error('Failed to persist account.')
     }
 
-    return toAccountSummary(persistedAccount)
+    return this.toAccountSummary(persistedAccount)
+  }
+
+  private toAccountSummary(account: PersistedAccount): AccountSummary {
+    const summary = toAccountSummary(account)
+
+    if (summary.subscriptionExpiresAt) {
+      return summary
+    }
+
+    try {
+      const auth = JSON.parse(this.unprotect(account.authPayload)) as CodexAuthPayload
+      const authSummary = summarizeAuth(auth)
+      if (authSummary.subscriptionExpiresAt) {
+        return {
+          ...summary,
+          subscriptionExpiresAt: authSummary.subscriptionExpiresAt
+        }
+      }
+    } catch {
+      // Keep account listing resilient for legacy safeStorage or malformed entries.
+    }
+
+    return summary
   }
 
   private protect(value: string): ProtectedPayload {

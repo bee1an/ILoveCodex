@@ -86,6 +86,19 @@ export function sessionLabel(session: CurrentSessionSummary | null): string {
   return session.email ?? session.name ?? session.accountId ?? 'current'
 }
 
+function formatCliSubscriptionExpiresAt(value?: string): string | null {
+  if (!value) {
+    return null
+  }
+
+  const parsed = Date.parse(value)
+  if (Number.isNaN(parsed)) {
+    return value
+  }
+
+  return new Date(parsed).toISOString()
+}
+
 export function tagLabel(tag?: Pick<AccountTag, 'id' | 'name'> | null): string {
   if (!tag) {
     return 'unknown'
@@ -141,7 +154,11 @@ export function printAccountList(payload: CliAccountListPayload, quiet: boolean)
 
   for (const account of payload.accounts) {
     const marker = account.id === payload.activeAccountId ? '*' : ' '
-    console.log(`${marker} ${account.id}  ${accountLabel(account)}`)
+    const subscriptionExpiresAt = formatCliSubscriptionExpiresAt(account.subscriptionExpiresAt)
+    const subscriptionSuffix = subscriptionExpiresAt
+      ? `  subscription_expires_at=${subscriptionExpiresAt}`
+      : ''
+    console.log(`${marker} ${account.id}  ${accountLabel(account)}${subscriptionSuffix}`)
   }
 
   console.log(`Current session: ${sessionLabel(payload.currentSession)}`)

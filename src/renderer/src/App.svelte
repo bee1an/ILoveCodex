@@ -1348,34 +1348,6 @@
         class="relative grid h-full min-h-0 flex-1 items-stretch gap-0 grid-cols-[minmax(0,1fr)]"
       >
         <div class="flex h-full min-h-0 flex-col gap-0 overflow-hidden">
-          {#if pageError}
-            <section
-              use:reveal={{ delay: 0 }}
-              class="theme-surface theme-error-panel rounded-[1rem] border border-danger/18 bg-white px-4 py-4 text-base text-danger"
-            >
-              <div class="grid gap-2">
-                <p>{pageError}</p>
-                {#if loginPortOccupant && hasLoginPortConflict()}
-                  <div class="flex flex-wrap items-center gap-2 text-sm text-danger">
-                    <span>
-                      {copyForLanguage().portOccupied(
-                        loginPortOccupant.command,
-                        loginPortOccupant.pid
-                      )}
-                    </span>
-                    <button
-                      class={compactGhostButton}
-                      on:click={killLoginPortOccupant}
-                      disabled={killingLoginPortOccupant}
-                    >
-                      {copyForLanguage().killPortOccupant}
-                    </button>
-                  </div>
-                {/if}
-              </div>
-            </section>
-          {/if}
-
           <div
             class="flex h-0 min-h-0 flex-1 flex-col overflow-hidden"
             use:reveal={{ delay: 0.05 }}
@@ -1466,6 +1438,36 @@
             />
           </div>
         </div>
+
+        {#if pageError}
+          <section
+            use:reveal={{ delay: 0 }}
+            class="theme-surface theme-error-panel fixed bottom-20 left-1/2 z-[60] w-[min(calc(100vw-2rem),52rem)] -translate-x-1/2 rounded-[1rem] border border-danger/18 bg-white px-4 py-3.5 text-sm text-danger shadow-[0_20px_60px_-36px_var(--paper-shadow),0_10px_30px_-24px_var(--paper-shadow)]"
+            role="alert"
+            aria-live="assertive"
+          >
+            <div class="grid gap-2">
+              <p>{pageError}</p>
+              {#if loginPortOccupant && hasLoginPortConflict()}
+                <div class="flex flex-wrap items-center gap-2 text-sm text-danger">
+                  <span>
+                    {copyForLanguage().portOccupied(
+                      loginPortOccupant.command,
+                      loginPortOccupant.pid
+                    )}
+                  </span>
+                  <button
+                    class={compactGhostButton}
+                    on:click={killLoginPortOccupant}
+                    disabled={killingLoginPortOccupant}
+                  >
+                    {copyForLanguage().killPortOccupant}
+                  </button>
+                </div>
+              {/if}
+            </div>
+          </section>
+        {/if}
 
         <div
           class="app-bottom-toolbar fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center"

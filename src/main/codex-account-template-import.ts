@@ -32,6 +32,7 @@ export interface TemplateCredentialsRecord {
   email?: string
   expires_at?: string
   expires_in?: number
+  subscription_expires_at?: string
   organization_id?: string
   plan_type?: string | null
   scope?: string | null
@@ -489,6 +490,17 @@ function parseTemplateCredentials(
       readOptionalNumber(record['expires_in']) ??
       readOptionalNumber(parent?.['expires_in']) ??
       toSecondsUntilIso(expiresAt),
+    subscription_expires_at: firstOptionalString(
+      normalizeIsoTimestamp(record['subscription_expires_at']),
+      normalizeIsoTimestamp(parent?.['subscription_expires_at']),
+      normalizeIsoTimestamp(
+        resolveOpenAiAuthStringClaimFromTokens(
+          idToken,
+          accessToken,
+          'chatgpt_subscription_active_until'
+        )
+      )
+    ),
     organization_id: firstOptionalString(
       record['organization_id'],
       parent?.['organization_id'],

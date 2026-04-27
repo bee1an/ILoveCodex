@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { accountUsageBadge, extraLimits, messages, weeklyResetTimeToneClass } from '../app-view'
+import {
+  accountSubscriptionBadge,
+  accountUsageBadge,
+  extraLimits,
+  messages,
+  weeklyResetTimeToneClass
+} from '../app-view'
 
 describe('app view account usage badge', () => {
   it('shows the underlying refresh error detail instead of only the generic label', () => {
@@ -149,5 +155,21 @@ describe('app view account usage badge', () => {
     expect(weeklyResetTimeToneClass(now + 2 * 24 * 60 * 60_000, now)).toBe('text-sky-700')
     expect(weeklyResetTimeToneClass(now + 4 * 24 * 60 * 60_000, now)).toBe('text-amber-700')
     expect(weeklyResetTimeToneClass(now + 6 * 24 * 60 * 60_000, now)).toBe('text-red-700')
+  })
+
+  it('formats subscription expiration badges when the claim exists', () => {
+    const badge = accountSubscriptionBadge(
+      '2026-05-15T04:28:55.000Z',
+      'zh-CN',
+      messages['zh-CN'],
+      Date.parse('2026-05-13T02:28:55.000Z')
+    )
+
+    expect(badge).toMatchObject({
+      label: '订阅剩余 2天2小时',
+      expired: false,
+      critical: true
+    })
+    expect(badge?.title).toContain('订阅到期')
   })
 })

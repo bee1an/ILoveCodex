@@ -21,6 +21,7 @@
   import {
     accountUsageBadge,
     accountEmail,
+    accountSubscriptionBadge,
     extraLimits,
     limitLabel,
     planLabel,
@@ -625,6 +626,11 @@
     >
       {#each sortableAccounts as account, accountIndex (account.id)}
         {@const usageBadge = accountUsageBadge(usageErrorByAccountId[account.id], account, copy)}
+        {@const subscriptionBadge = accountSubscriptionBadge(
+          account.subscriptionExpiresAt,
+          language,
+          copy
+        )}
         {@const assignableTags = availableTagsForAccount(tags, account)}
         <article
           class={`theme-account-row group grid items-center gap-3 px-2.5 py-2.5 md:grid-cols-[auto_minmax(0,1fr)_auto_auto] ${accountRowTone(
@@ -681,6 +687,22 @@
               >
                 {planLabel(usageByAccountId[account.id]?.planType)}
               </span>
+
+              {#if subscriptionBadge}
+                <span
+                  class={`inline-flex max-w-full items-center gap-1 rounded-[0.32rem] border px-1.75 py-0.5 text-[10px] font-medium leading-none ${
+                    subscriptionBadge.expired
+                      ? 'border-red-500/16 bg-red-500/10 text-red-700'
+                      : subscriptionBadge.critical
+                        ? 'border-amber-500/16 bg-amber-500/12 text-amber-700'
+                        : 'border-violet-500/14 bg-violet-500/10 text-violet-700'
+                  }`}
+                  title={subscriptionBadge.title}
+                >
+                  <span class="i-lucide-calendar-days h-3 w-3 flex-none"></span>
+                  <span class="truncate">{subscriptionBadge.label}</span>
+                </span>
+              {/if}
 
               {#if showWakeAccount(account.id) && hasEnabledWakeSchedule(account.id)}
                 <button

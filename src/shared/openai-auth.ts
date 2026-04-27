@@ -32,6 +32,65 @@ export function resolveOpenAiAuthClaim(payload: Record<string, unknown>): Record
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
 }
 
+export function normalizeOpenAiTimestampClaim(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return undefined
+    }
+
+    if (/^\d+(?:\.\d+)?$/.test(trimmed)) {
+      return normalizeOpenAiTimestampClaim(Number(trimmed))
+    }
+
+    const parsed = Date.parse(trimmed)
+    return Number.isNaN(parsed) ? trimmed : new Date(parsed).toISOString()
+  }
+
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return undefined
+  }
+
+  const millis = value > 1_000_000_000_000 ? value : value * 1000
+  const date = new Date(millis)
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
+}
+
+export function resolveOpenAiAuthStringClaimFromTokens(
+  idToken: string | undefined,
+  accessToken: string | undefined,
+  key: string
+): string | undefined {
+  const claims = [decodeJwtPayload(idToken), decodeJwtPayload(accessToken)]
+
+  for (const payload of claims) {
+    const authClaim = resolveOpenAiAuthClaim(payload)
+    const resolved = resolveJwtStringClaim(authClaim, key)
+    if (resolved) {
+      return resolved
+    }
+  }
+
+  return undefined
+}
+
+export function resolveChatGptSubscriptionExpiresAtFromTokens(
+  idToken?: string,
+  accessToken?: string
+): string | undefined {
+  const claims = [decodeJwtPayload(idToken), decodeJwtPayload(accessToken)]
+
+  for (const payload of claims) {
+    const authClaim = resolveOpenAiAuthClaim(payload)
+    const resolved = normalizeOpenAiTimestampClaim(authClaim.chatgpt_subscription_active_until)
+    if (resolved) {
+      return resolved
+    }
+  }
+
+  return undefined
+}
+
 export function resolveChatGptAccountIdFromTokens(
   idToken?: string,
   accessToken?: string,

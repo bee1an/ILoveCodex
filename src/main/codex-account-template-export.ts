@@ -133,6 +133,7 @@ export function buildTemplateAccountExport(
   const secondaryResetAt = toIsoFromEpochSeconds(rateLimits?.secondary?.resetsAt)
   const primaryUsedPercent = rateLimits?.primary?.usedPercent ?? 0
   const secondaryUsedPercent = rateLimits?.secondary?.usedPercent ?? 0
+  const subscriptionExpiresAt = resolveSubscriptionExpiresAt(auth) ?? account.subscriptionExpiresAt
 
   return {
     name,
@@ -150,6 +151,7 @@ export function buildTemplateAccountExport(
       email,
       expires_at: toIsoFromJwtExp(accessToken),
       expires_in: toSecondsUntilJwtExp(accessToken),
+      subscription_expires_at: subscriptionExpiresAt,
       organization_id: resolveOrganizationId(auth),
       plan_type: planType,
       scope: null,
@@ -209,7 +211,8 @@ function buildResolvedExportAccount(
     idToken,
     lastRefresh: normalizeIsoTimestamp(source.auth.last_refresh) ?? exportedAt,
     expiresAt: toIsoFromJwtExp(accessToken) ?? toIsoFromJwtExp(idToken),
-    subscriptionExpiresAt: resolveSubscriptionExpiresAt(source.auth),
+    subscriptionExpiresAt:
+      resolveSubscriptionExpiresAt(source.auth) ?? source.account.subscriptionExpiresAt,
     authMode: source.auth.auth_mode,
     openAiApiKey: source.auth.OPENAI_API_KEY,
     createdAt: toEpochSeconds(source.account.createdAt) ?? toEpochSeconds(exportedAt) ?? 0,
