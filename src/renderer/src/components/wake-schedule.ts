@@ -1,11 +1,26 @@
 import type { AccountWakeSchedule, AppLanguage } from '../../../shared/codex'
 
+export function normalizeWakeScheduleTime(value: string): string {
+  const trimmed = value.trim()
+  const match = /^(\d{1,2}):([0-5]\d)$/.exec(trimmed)
+  if (!match) {
+    return trimmed
+  }
+
+  const hours = Number(match[1])
+  if (hours < 0 || hours > 23) {
+    return trimmed
+  }
+
+  return `${String(hours).padStart(2, '0')}:${match[2]}`
+}
+
 export function normalizeWakeScheduleTimes(values: string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort()
+  return [...new Set(values.map(normalizeWakeScheduleTime).filter(Boolean))].sort()
 }
 
 export function isValidWakeScheduleTime(value: string): boolean {
-  return /^([01]\d|2[0-3]):([0-5]\d)$/.test(value.trim())
+  return /^([01]\d|2[0-3]):([0-5]\d)$/.test(normalizeWakeScheduleTime(value))
 }
 
 export function wakeScheduleSummary(

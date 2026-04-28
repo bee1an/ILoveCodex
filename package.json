@@ -1,6 +1,6 @@
 {
   "name": "codexdock",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "CodexDock desktop account manager for Codex sessions",
   "main": "./out/main/index.js",
   "author": "bee1an",

@@ -9,9 +9,11 @@
   import WakeDialog from './components/WakeDialog.svelte'
   import {
     accountLabel,
+    accountScopedRecord,
     loginTone,
     messages,
     pollingOptions,
+    preserveAccountScopedRecord,
     statusBarAccounts,
     usageErrorKind
   } from './components/app-view'
@@ -42,6 +44,7 @@
   import {
     filterLocalMockAppSnapshot,
     accountTransferFormats,
+    defaultWakeModel,
     defaultStatsDisplaySettings,
     formatRelativeReset,
     normalizeStatsDisplaySettings,
@@ -64,6 +67,9 @@
       updateCallbackDone: Promise<void>
       skipTransition: () => void
     }
+  }
+  type ApplySnapshotOptions = {
+    preserveUsageState?: boolean
   }
 
   let snapshot: AppSnapshot = {
@@ -141,7 +147,7 @@
   let wakeDialogAccount: AccountSummary | null = null
   let wakeDialogTab: WakeDialogTab = 'session'
   let wakePromptDraft = 'ping'
-  let wakeModelDraft = 'gpt-5.4'
+  let wakeModelDraft = defaultWakeModel
   let wakeDialogStatus: WakeDialogStatus = 'idle'
   let wakeDialogLogs: string[] = []
   let wakeRequestResult: WakeAccountRequestResult | null = null
@@ -157,7 +163,7 @@
   let wakeScheduleEnabledDraft = true
   let wakeScheduleTimesDraft: string[] = ['09:00']
   let wakeSchedulePromptDraft = 'ping'
-  let wakeScheduleModelDraft = 'gpt-5.4'
+  let wakeScheduleModelDraft = defaultWakeModel
   let wakeScheduleError = ''
   let wakeScheduleSaving = false
   const isTrayView =
@@ -394,18 +400,44 @@
     )
   }
 
-  const applySnapshot = (nextSnapshot: AppSnapshot): void => {
-    rawSnapshot = nextSnapshot
+  const applySnapshot = (nextSnapshot: AppSnapshot, options: ApplySnapshotOptions = {}): void => {
+    const snapshotSource = options.preserveUsageState
+      ? {
+          ...nextSnapshot,
+          usageByAccountId: preserveAccountScopedRecord(
+            nextSnapshot.accounts,
+            nextSnapshot.usageByAccountId,
+            usageByAccountId
+          ),
+          usageErrorByAccountId: preserveAccountScopedRecord(
+            nextSnapshot.accounts,
+            nextSnapshot.usageErrorByAccountId,
+            usageErrorByAccountId
+          )
+        }
+      : nextSnapshot
+
+    rawSnapshot = snapshotSource
     const visibleSnapshot =
-      appMeta.isPackaged === false ? filterLocalMockAppSnapshot(nextSnapshot) : nextSnapshot
-    snapshot = visibleSnapshot
+      appMeta.isPackaged === false ? filterLocalMockAppSnapshot(snapshotSource) : snapshotSource
+
+    const nextUsageByAccountId = accountScopedRecord(
+      visibleSnapshot.accounts,
+      visibleSnapshot.usageByAccountId
+    )
+    const nextUsageErrorByAccountId = accountScopedRecord(
+      visibleSnapshot.accounts,
+      visibleSnapshot.usageErrorByAccountId
+    )
+
+    snapshot = {
+      ...visibleSnapshot,
+      usageByAccountId: nextUsageByAccountId,
+      usageErrorByAccountId: nextUsageErrorByAccountId
+    }
     applyTheme(visibleSnapshot.settings.theme)
-    usageByAccountId = {
-      ...visibleSnapshot.usageByAccountId
-    }
-    usageErrorByAccountId = {
-      ...visibleSnapshot.usageErrorByAccountId
-    }
+    usageByAccountId = nextUsageByAccountId
+    usageErrorByAccountId = nextUsageErrorByAccountId
     syncUsageState(visibleSnapshot.accounts)
   }
 
@@ -545,11 +577,15 @@
     usageLoadingByAccountId = nextState
   }
 
-  const runAction = async (_key: string, task: () => Promise<AppSnapshot>): Promise<void> => {
+  const runAction = async (
+    _key: string,
+    task: () => Promise<AppSnapshot>,
+    options: ApplySnapshotOptions = {}
+  ): Promise<void> => {
     pageError = ''
 
     try {
-      applySnapshot(await task())
+      applySnapshot(await task(), options)
     } catch (error) {
       pageError = localizeKnownError(error, copyForLanguage().actionFailed)
     }
@@ -787,14 +823,25 @@
   }
 
   const reorderAccounts = async (accountIds: string[]): Promise<void> => {
+    if (!accountIds.length) {
+      return
+    }
+
+    const payloadAccountIds = new Set(accountIds)
+    const currentPayloadOrder = snapshot.accounts
+      .filter((account) => payloadAccountIds.has(account.id))
+      .map((account) => account.id)
+
     if (
-      accountIds.length !== snapshot.accounts.length ||
-      accountIds.every((accountId, index) => accountId === snapshot.accounts[index]?.id)
+      currentPayloadOrder.length === accountIds.length &&
+      accountIds.every((accountId, index) => accountId === currentPayloadOrder[index])
     ) {
       return
     }
 
-    await runAction('accounts:reorder', () => window.codexApp.reorderAccounts(accountIds))
+    await runAction('accounts:reorder', () => window.codexApp.reorderAccounts(accountIds), {
+      preserveUsageState: true
+    })
   }
 
   const createTag = async (name: string): Promise<void> => {
@@ -903,7 +950,7 @@
     wakeScheduleEnabledDraft = schedule?.enabled ?? true
     wakeScheduleTimesDraft = schedule?.times.length ? [...schedule.times] : ['09:00']
     wakeSchedulePromptDraft = schedule?.prompt ?? 'ping'
-    wakeScheduleModelDraft = schedule?.model ?? 'gpt-5.4'
+    wakeScheduleModelDraft = schedule?.model ?? defaultWakeModel
     wakeScheduleError = ''
   }
 
@@ -962,7 +1009,7 @@
       enabled: wakeScheduleEnabledDraft,
       times,
       prompt: wakeSchedulePromptDraft.trim() || 'ping',
-      model: wakeScheduleModelDraft.trim() || 'gpt-5.4'
+      model: wakeScheduleModelDraft.trim() || defaultWakeModel
     }
 
     try {
@@ -1047,7 +1094,7 @@
 
     resetWakeDialogState()
     wakeDialogStatus = 'running'
-    await pushWakeLog(copyForLanguage().wakeQuotaLogStart(wakeModelDraft || 'gpt-5.4'))
+    await pushWakeLog(copyForLanguage().wakeQuotaLogStart(wakeModelDraft || defaultWakeModel))
     await pushWakeLog(copyForLanguage().wakeQuotaLogPrompt(wakePromptDraft || 'ping'))
     await pushWakeLog(copyForLanguage().wakeQuotaLogRequesting)
 

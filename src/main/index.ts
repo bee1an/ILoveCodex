@@ -23,6 +23,7 @@ import { isHomebrewCaskInstalled, launchHomebrewCaskUpgrade } from './homebrew-u
 import { createElectronCodexPlatformAdapter } from './electron-platform'
 import { installCliShim } from './cli-shim'
 import { createCodexServices, type CodexServices } from './codex-services'
+import { migrateLegacyElectronUserData } from './app-data-migration'
 import { refreshLocalMockData, seedLocalMockData } from './local-mock-data'
 import {
   buildTrayTokenCostMenuItems,
@@ -71,7 +72,7 @@ let homebrewUpdateQuitTimer: ReturnType<typeof setTimeout> | null = null
 let homebrewUpdateQuitCountdownStarted = false
 const defaultWorkspacePath = process.cwd()
 const isLocalEnvironment = !app.isPackaged
-const configuredUserDataPath = isLocalEnvironment
+const configuredAppConfigPath = isLocalEnvironment
   ? join(homedir(), '.config', 'codexdock-local')
   : join(homedir(), '.config', 'codexdock')
 function shouldUseLocalMockCodexHome(): boolean {
@@ -80,7 +81,7 @@ function shouldUseLocalMockCodexHome(): boolean {
   }
 
   try {
-    const raw = readFileSync(join(configuredUserDataPath, 'codex-accounts.json'), 'utf8')
+    const raw = readFileSync(join(configuredAppConfigPath, 'codex-accounts.json'), 'utf8')
     const parsed = JSON.parse(raw) as { settings?: { showLocalMockData?: unknown } }
     return parsed.settings?.showLocalMockData !== false
   } catch {
@@ -90,11 +91,9 @@ function shouldUseLocalMockCodexHome(): boolean {
 
 const configuredCodexHomePath = isLocalEnvironment
   ? shouldUseLocalMockCodexHome()
-    ? join(configuredUserDataPath, '.codex')
+    ? join(configuredAppConfigPath, '.codex')
     : join(homedir(), '.codex')
   : join(homedir(), '.codex')
-
-app.setPath('userData', configuredUserDataPath)
 
 async function importRealLocalAccounts(services: CodexServices): Promise<void> {
   const realAccountsStateFile = join(homedir(), '.config', 'codexdock', 'codex-accounts.json')
@@ -447,6 +446,20 @@ function createTray(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
+  const legacyUserDataMigration = await migrateLegacyElectronUserData({
+    legacyConfigPath: configuredAppConfigPath,
+    defaultUserDataPath: app.getPath('userData')
+  })
+  if (legacyUserDataMigration.moved.length || legacyUserDataMigration.backedUp.length) {
+    console.info(
+      [
+        'Migrated legacy Electron user data out of CodexDock config directory.',
+        `moved=${legacyUserDataMigration.moved.length}`,
+        `backedUp=${legacyUserDataMigration.backedUp.length}`
+      ].join(' ')
+    )
+  }
+
   const cliShim = await installCliShim({
     appPath: process.execPath,
     isPackaged: app.isPackaged
@@ -463,7 +476,7 @@ app.whenReady().then(async () => {
   const loginEventListeners = new Set<(event: LoginEvent) => void>()
   const platform = createElectronCodexPlatformAdapter()
   codexServices = createCodexServices({
-    userDataPath: app.getPath('userData'),
+    userDataPath: configuredAppConfigPath,
     defaultWorkspacePath,
     defaultCodexHome: configuredCodexHomePath,
     platform,

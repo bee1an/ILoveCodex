@@ -35,6 +35,12 @@ Do not insert an extra standalone `--` before the subcommand in this repository'
   - Always prints `Current session: ...`
 - `cdock account import-current`
   - Imports the current Codex account into local storage
+- `cdock account import [--file <path>]`
+  - Imports accounts from a JSON file or stdin
+- `cdock account export [account-id...] [--file <path>]`
+  - Exports all accounts when no IDs are provided
+  - Exports one account with `cdock account export <account-id>`
+  - Exports multiple selected accounts by passing multiple account IDs
 - `cdock account activate <account-id>`
   - Activates a stored account
 - `cdock account best`

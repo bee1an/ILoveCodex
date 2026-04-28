@@ -527,6 +527,13 @@ describe('runCli', () => {
       },
       error: null
     })
+
+    logSpy.mockClear()
+    runtime.services.accounts.exportToTemplate.mockClear()
+    await expect(runCli(runtime as never, ['account', 'export', 'acct_1', '--json'])).resolves.toBe(
+      0
+    )
+    expect(runtime.services.accounts.exportToTemplate).toHaveBeenCalledWith(['acct_1'])
   })
 
   it('covers provider commands', async () => {

@@ -6,6 +6,7 @@
     AppLanguage,
     WakeAccountRequestResult
   } from '../../../shared/codex'
+  import { defaultWakeModel } from '../../../shared/codex'
   import type { LocalizedCopy } from './app-view'
   import Checkbox from './Checkbox.svelte'
   import { cascadeIn, reveal } from './gsap-motion'
@@ -19,7 +20,7 @@
   export let activeTab: 'session' | 'schedule' = 'session'
 
   export let sessionPrompt = 'ping'
-  export let sessionModel = 'gpt-5.4'
+  export let sessionModel = defaultWakeModel
   export let sessionStatus: 'idle' | 'running' | 'success' | 'skipped' | 'error' = 'idle'
   export let sessionLogs: string[] = []
   export let requestResult: WakeAccountRequestResult | null = null
@@ -31,7 +32,7 @@
   export let scheduleEnabled = true
   export let scheduleTimes: string[] = ['09:00']
   export let schedulePrompt = 'ping'
-  export let scheduleModel = 'gpt-5.4'
+  export let scheduleModel = defaultWakeModel
   export let scheduleError = ''
   export let scheduleSaving = false
 
@@ -327,19 +328,21 @@
                     {copy.wakeScheduleTimes}
                   </span>
                   <button
-                    class="theme-select wake-compact-button rounded-[0.35rem] border border-black/10 px-2.5 py-1.5 text-xs font-medium"
+                    class="theme-select wake-icon-button inline-flex h-9 w-9 items-center justify-center rounded-[0.35rem] border border-black/10 text-xs font-medium"
                     type="button"
                     onclick={addTime}
                     disabled={dialogBusy()}
+                    aria-label={copy.wakeScheduleAddTime}
+                    title={copy.wakeScheduleAddTime}
                   >
-                    {copy.wakeScheduleAddTime}
+                    <span class="i-lucide-plus h-4 w-4"></span>
                   </button>
                 </div>
 
                 <div class="grid gap-1.5">
                   {#each scheduleTimes as timeValue, timeIndex (timeIndex)}
                     <div
-                      class="wake-time-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2"
+                      class="wake-time-row grid grid-cols-[minmax(0,1fr)_2.25rem] items-center gap-2"
                     >
                       <input
                         class="theme-select wake-dialog-field h-9 min-w-0 rounded-[0.4rem] border border-black/8 bg-transparent px-3 text-sm tabular-nums text-ink outline-none transition hover:bg-[var(--surface-hover)] focus-visible:border-black/20 focus-visible:bg-transparent focus-visible:ring-2 focus-visible:ring-black/5"
@@ -351,12 +354,14 @@
                           updateTime(timeIndex, (event.currentTarget as HTMLInputElement).value)}
                       />
                       <button
-                        class="theme-select wake-compact-button rounded-[0.35rem] border border-black/10 px-2.5 py-1.5 text-xs font-medium"
+                        class="theme-select wake-icon-button inline-flex h-9 w-9 items-center justify-center rounded-[0.35rem] border border-black/10 text-xs font-medium"
                         type="button"
                         onclick={() => removeTime(timeIndex)}
                         disabled={dialogBusy()}
+                        aria-label={copy.wakeScheduleRemoveTime}
+                        title={copy.wakeScheduleRemoveTime}
                       >
-                        {copy.wakeScheduleRemoveTime}
+                        <span class="i-lucide-trash-2 h-3.5 w-3.5"></span>
                       </button>
                     </div>
                   {/each}
@@ -391,9 +396,11 @@
 
               {#if scheduleError}
                 <div
-                  class="rounded-[0.4rem] border border-danger/16 bg-danger/8 px-3 py-2 text-sm text-danger"
+                  class="theme-error-panel inline-flex items-center gap-2 rounded-[0.4rem] border border-danger/18 bg-danger/8 px-3 py-2 text-sm font-medium text-danger"
+                  role="alert"
                 >
-                  {scheduleError}
+                  <span class="i-lucide-circle-alert h-4 w-4 flex-none"></span>
+                  <span>{scheduleError}</span>
                 </div>
               {/if}
             </div>
@@ -516,6 +523,7 @@
 
   .wake-dialog-panel :global(.wake-dialog-field),
   .wake-dialog-panel :global(.wake-compact-button),
+  .wake-dialog-panel :global(.wake-icon-button),
   .wake-dialog-panel :global(.theme-code-surface) {
     box-shadow: none !important;
   }

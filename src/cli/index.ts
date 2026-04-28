@@ -7,15 +7,14 @@ import { createElectronCodexPlatformAdapter } from '../main/electron-platform'
 import { createCodexServices } from '../main/codex-services'
 import type { LoginEvent } from '../shared/codex'
 
-const configuredUserDataPath = join(homedir(), '.config', 'codexdock')
+const configuredAppConfigPath = join(homedir(), '.config', 'codexdock')
 
 async function main(): Promise<void> {
-  app.setPath('userData', configuredUserDataPath)
   await app.whenReady()
 
   const listeners = new Set<(event: LoginEvent) => void>()
   const services = createCodexServices({
-    userDataPath: app.getPath('userData'),
+    userDataPath: configuredAppConfigPath,
     defaultWorkspacePath: process.cwd(),
     platform: createElectronCodexPlatformAdapter(),
     emitLoginEvent: (event) => {

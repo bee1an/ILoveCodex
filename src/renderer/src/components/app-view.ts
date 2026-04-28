@@ -17,6 +17,27 @@ export const languageOptions: Array<{ value: AppLanguage; label: string }> = [
   { value: 'en', label: 'English' }
 ]
 
+export function accountScopedRecord<T>(
+  accounts: Array<Pick<AccountSummary, 'id'>>,
+  record: Record<string, T>
+): Record<string, T> {
+  const accountIds = new Set(accounts.map((account) => account.id))
+  return Object.fromEntries(
+    Object.entries(record).filter(([accountId]) => accountIds.has(accountId))
+  )
+}
+
+export function preserveAccountScopedRecord<T>(
+  accounts: Array<Pick<AccountSummary, 'id'>>,
+  snapshotRecord: Record<string, T>,
+  currentRecord: Record<string, T>
+): Record<string, T> {
+  return accountScopedRecord(accounts, {
+    ...snapshotRecord,
+    ...currentRecord
+  })
+}
+
 export const messages = {
   'zh-CN': {
     unnamedAccount: '未命名账号',
@@ -118,6 +139,7 @@ export const messages = {
     selectAccount: '选择账号',
     selectAllVisibleAccounts: '全选当前筛选',
     clearSelectedAccounts: '清空选择',
+    exportAccount: '导出账号',
     exportSelectedAccounts: '导出选中',
     deleteSelectedAccounts: '删除选中',
     removeSelectedConfirm: (count: number) => `删除选中的 ${count} 个本地保存登录态？`,
@@ -199,7 +221,7 @@ export const messages = {
     wakeQuotaPromptLabel: '唤醒词',
     wakeQuotaPromptPlaceholder: '例如：ping',
     wakeQuotaModelLabel: '模型',
-    wakeQuotaModelPlaceholder: '例如：gpt-5.4',
+    wakeQuotaModelPlaceholder: '例如：gpt-5.4-mini',
     wakeQuotaConfirm: '开始唤醒',
     wakeQuotaCancel: '取消',
     wakeQuotaStatusIdle: '待命',
@@ -457,6 +479,7 @@ export const messages = {
     selectAccount: 'Select account',
     selectAllVisibleAccounts: 'Select visible',
     clearSelectedAccounts: 'Clear selection',
+    exportAccount: 'Export account',
     exportSelectedAccounts: 'Export selected',
     deleteSelectedAccounts: 'Delete selected',
     removeSelectedConfirm: (count: number) =>
@@ -541,7 +564,7 @@ export const messages = {
     wakeQuotaPromptLabel: 'Prompt',
     wakeQuotaPromptPlaceholder: 'For example: ping',
     wakeQuotaModelLabel: 'Model',
-    wakeQuotaModelPlaceholder: 'For example: gpt-5.4',
+    wakeQuotaModelPlaceholder: 'For example: gpt-5.4-mini',
     wakeQuotaConfirm: 'Wake now',
     wakeQuotaCancel: 'Cancel',
     wakeQuotaStatusIdle: 'Idle',

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  accountScopedRecord,
   accountSubscriptionBadge,
   accountUsageBadge,
   extraLimits,
   messages,
+  preserveAccountScopedRecord,
   weeklyResetTimeToneClass
 } from '../app-view'
 
@@ -171,5 +173,38 @@ describe('app view account usage badge', () => {
       critical: true
     })
     expect(badge?.title).toContain('订阅到期')
+  })
+
+  it('preserves usage records by account id after account reorder snapshots', () => {
+    const accounts = [{ id: 'acct-2' }, { id: 'acct-1' }]
+
+    expect(
+      preserveAccountScopedRecord(
+        accounts,
+        {
+          'acct-1': 'server-acct-1',
+          'acct-2': 'server-acct-2',
+          hidden: 'server-hidden'
+        },
+        {
+          'acct-1': 'current-acct-1',
+          removed: 'current-removed'
+        }
+      )
+    ).toEqual({
+      'acct-1': 'current-acct-1',
+      'acct-2': 'server-acct-2'
+    })
+  })
+
+  it('filters account-scoped records to visible accounts', () => {
+    expect(
+      accountScopedRecord([{ id: 'acct-1' }], {
+        'acct-1': 'visible',
+        'acct-2': 'hidden'
+      })
+    ).toEqual({
+      'acct-1': 'visible'
+    })
   })
 })

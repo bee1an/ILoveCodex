@@ -1,5 +1,5 @@
 import {
-  supportsWakeSessionQuota,
+  canRunWakeRequest,
   type AccountSummary,
   type AccountWakeSchedule,
   type AppSnapshot,
@@ -95,7 +95,7 @@ function nextOccurrence(schedule: AccountWakeSchedule, nowMs: number): number | 
 
 function supportsScheduledWake(snapshot: AppSnapshot, accountId: string): boolean {
   const rateLimits = snapshot.usageByAccountId[accountId]
-  return Boolean(rateLimits && supportsWakeSessionQuota(rateLimits))
+  return Boolean(rateLimits && canRunWakeRequest(rateLimits))
 }
 
 export function createWakeSchedulerController(
@@ -219,7 +219,8 @@ export function createWakeSchedulerController(
         await options.updateWakeScheduleRuntime(account.id, {
           lastTriggeredAt: triggeredAt,
           lastStatus: 'skipped',
-          lastMessage: 'Wake skipped because another wake request was already running.'
+          lastMessage:
+            'Wake skipped because quota is unavailable or another wake request was already running.'
         })
         return
       }

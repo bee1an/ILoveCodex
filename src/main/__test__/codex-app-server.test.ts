@@ -237,14 +237,14 @@ describe('wakeAccountRateLimits', () => {
     ).resolves.toMatchObject({
       status: 200,
       accepted: true,
-      model: 'gpt-5.4',
+      model: 'gpt-5.4-mini',
       prompt: 'ping',
       body: '{}'
     })
 
     expect(requestedUrl).toBe('https://chatgpt.com/backend-api/codex/responses')
     expect(JSON.parse(requestedBody)).toMatchObject({
-      model: 'gpt-5.4',
+      model: 'gpt-5.4-mini',
       instructions: 'Start or refresh this Codex session timer. Reply briefly.',
       store: false,
       stream: true

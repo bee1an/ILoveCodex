@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  canRunWakeRequest,
   filterLocalMockAppSnapshot,
   formatRelativeReset,
   isLocalMockAccount,
@@ -386,6 +387,26 @@ describe('codex shared helpers', () => {
     }
 
     expect(resolveBestAccount(accounts, usageByAccountId)).toBeNull()
+  })
+
+  it('does not allow wake requests when weekly quota is depleted', () => {
+    expect(
+      canRunWakeRequest(
+        createUsage({
+          primary: { usedPercent: 0, windowDurationMins: 300, resetsAt: null },
+          secondary: { usedPercent: 100, windowDurationMins: 10080, resetsAt: null }
+        })
+      )
+    ).toBe(false)
+
+    expect(
+      canRunWakeRequest(
+        createUsage({
+          primary: { usedPercent: 100, windowDurationMins: 300, resetsAt: null },
+          secondary: { usedPercent: 80, windowDurationMins: 10080, resetsAt: null }
+        })
+      )
+    ).toBe(true)
   })
 
   it('treats free accounts as weekly-only quota accounts', () => {

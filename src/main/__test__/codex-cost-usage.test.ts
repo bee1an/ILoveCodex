@@ -636,13 +636,13 @@ describe('CodexCostUsageService', () => {
     })
   })
 
-  it('自动刷新会补齐缓存之后缺失的日期', async () => {
+  it('自动刷新只合并当天数据，历史缺口保留到手动刷新处理', async () => {
     const root = await createTempDir()
     const userDataPath = join(root, 'user-data')
     const codexHome = join(root, 'default')
-    const logPath = join(codexHome, 'sessions/2026/04/20/default.jsonl')
+    const initialLogPath = join(codexHome, 'sessions/2026/04/20/default.jsonl')
     let now = new Date('2026-04-20T12:00:00+08:00')
-    await writeJsonl(logPath, [
+    await writeJsonl(initialLogPath, [
       sessionMeta('default'),
       tokenCount('2026-04-20T10:00:00+08:00', {
         last_token_usage: { input_tokens: 2, output_tokens: 1 }
@@ -659,14 +659,14 @@ describe('CodexCostUsageService', () => {
       summary: { last30DaysTokens: 3, sessionTokens: 3 }
     })
 
-    await writeJsonl(logPath, [
-      sessionMeta('default'),
-      tokenCount('2026-04-20T10:00:00+08:00', {
-        last_token_usage: { input_tokens: 2, output_tokens: 1 }
-      }),
+    await writeJsonl(join(codexHome, 'sessions/2026/04/21/missed.jsonl'), [
+      sessionMeta('missed'),
       tokenCount('2026-04-21T10:00:00+08:00', {
         last_token_usage: { input_tokens: 1, output_tokens: 1 }
-      }),
+      })
+    ])
+    await writeJsonl(join(codexHome, 'sessions/2026/04/22/today.jsonl'), [
+      sessionMeta('today'),
       tokenCount('2026-04-22T10:00:00+08:00', {
         last_token_usage: { input_tokens: 4, output_tokens: 2 }
       })
@@ -674,6 +674,9 @@ describe('CodexCostUsageService', () => {
     now = new Date('2026-04-22T12:05:00+08:00')
 
     await expect(service.read()).resolves.toMatchObject({
+      summary: { last30DaysTokens: 9, sessionTokens: 6 }
+    })
+    await expect(service.read({ refresh: true })).resolves.toMatchObject({
       summary: { last30DaysTokens: 11, sessionTokens: 6 }
     })
   })

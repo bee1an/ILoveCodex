@@ -19,6 +19,7 @@ import {
   resolveChatGptSubscriptionExpiresAtFromTokens
 } from '../shared/openai-auth'
 import {
+  defaultWakeModel,
   defaultStatsDisplaySettings,
   normalizeLocalGatewaySettings,
   normalizeStatsDisplaySettings
@@ -130,7 +131,7 @@ function normalizeWakeSchedule(
   return {
     enabled: Boolean(schedule.enabled),
     times,
-    model: schedule.model?.trim() || 'gpt-5.4',
+    model: schedule.model?.trim() || defaultWakeModel,
     prompt: schedule.prompt?.trim() || 'ping',
     lastTriggeredAt: schedule.lastTriggeredAt,
     lastSucceededAt: schedule.lastSucceededAt,

@@ -241,13 +241,37 @@ function dateFromLocalDayKey(dayKey: string): Date | null {
   return new Date(Number(year), Number(month) - 1, Number(day))
 }
 
-function nextLocalDayKey(dayKey: string): string | null {
-  const date = dateFromLocalDayKey(dayKey)
-  if (!date) {
+function dayKeysInRange(sinceKey: string, untilKey: string): string[] {
+  const since = dateFromLocalDayKey(sinceKey)
+  const until = dateFromLocalDayKey(untilKey)
+  if (!since || !until || since.getTime() > until.getTime()) {
+    return []
+  }
+
+  const keys: string[] = []
+  for (let cursor = since; cursor.getTime() <= until.getTime(); cursor = addDays(cursor, 1)) {
+    keys.push(localDayKey(cursor))
+  }
+  return keys
+}
+
+function dayKeyParts(dayKey: string): [year: string, month: string, day: string] | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey)
+  if (!match) {
     return null
   }
 
-  return localDayKey(addDays(date, 1))
+  return [match[1]!, match[2]!, match[3]!]
+}
+
+function rangeStartMs(dayKey: string): number | null {
+  const date = dateFromLocalDayKey(dayKey)
+  return date ? date.getTime() : null
+}
+
+function rangeEndMs(dayKey: string): number | null {
+  const date = dateFromLocalDayKey(dayKey)
+  return date ? addDays(date, 1).getTime() : null
 }
 
 function dayKeyFromTimestamp(timestamp: string): string | null {
@@ -660,14 +684,87 @@ async function listJsonlFlat(root: string): Promise<string[]> {
     .map((entry) => join(root, entry.name))
 }
 
-async function listCodexLogFiles(codexHome: string): Promise<string[]> {
-  const sessions = (await listJsonlRecursive(join(codexHome, 'sessions'))).sort((left, right) =>
-    left.localeCompare(right)
+async function listSessionJsonlInRange(
+  codexHome: string,
+  sinceKey: string,
+  untilKey: string
+): Promise<string[]> {
+  const files: string[] = []
+  for (const dayKey of dayKeysInRange(sinceKey, untilKey)) {
+    const parts = dayKeyParts(dayKey)
+    if (!parts) {
+      continue
+    }
+
+    files.push(...(await listJsonlRecursive(join(codexHome, 'sessions', ...parts))))
+  }
+  return files
+}
+
+async function filterFilesByModifiedRange(
+  files: string[],
+  sinceKey: string,
+  untilKey: string
+): Promise<string[]> {
+  const sinceMs = rangeStartMs(sinceKey)
+  const untilMs = rangeEndMs(untilKey)
+  if (sinceMs == null || untilMs == null) {
+    return files
+  }
+
+  const filtered: string[] = []
+  await Promise.all(
+    files.map(async (filePath) => {
+      try {
+        const stats = await fs.stat(filePath)
+        if (stats.mtimeMs >= sinceMs && stats.mtimeMs < untilMs) {
+          filtered.push(filePath)
+        }
+      } catch (error) {
+        if (!isMissingPathError(error)) {
+          throw error
+        }
+      }
+    })
   )
-  const archived = (await listJsonlFlat(join(codexHome, 'archived_sessions'))).sort((left, right) =>
-    left.localeCompare(right)
-  )
+  return filtered
+}
+
+async function listCodexLogFiles(
+  codexHome: string,
+  options: TokenCostScanOptions = {}
+): Promise<string[]> {
+  const hasRange = Boolean(options.sinceKey && options.untilKey)
+  const sessionsRoot = join(codexHome, 'sessions')
+  const sessionCandidates = hasRange
+    ? [
+        ...(await listSessionJsonlInRange(codexHome, options.sinceKey!, options.untilKey!)),
+        ...(await filterFilesByModifiedRange(
+          await listJsonlRecursive(sessionsRoot),
+          options.sinceKey!,
+          options.untilKey!
+        ))
+      ]
+    : await listJsonlRecursive(sessionsRoot)
+  const sessions = [...new Set(sessionCandidates)].sort((left, right) => left.localeCompare(right))
+  const archivedCandidates = await listJsonlFlat(join(codexHome, 'archived_sessions'))
+  const archived = (
+    hasRange
+      ? await filterFilesByModifiedRange(archivedCandidates, options.sinceKey!, options.untilKey!)
+      : archivedCandidates
+  ).sort((left, right) => left.localeCompare(right))
   return [...new Set([...sessions, ...archived])]
+}
+
+async function buildSessionFileMap(codexHome: string): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  for (const filePath of await listCodexLogFiles(codexHome)) {
+    const metadata = await parseSessionMetadata(filePath)
+    if (metadata?.sessionId && !out.has(metadata.sessionId)) {
+      out.set(metadata.sessionId, filePath)
+    }
+  }
+  return out
 }
 
 async function fileIdentity(filePath: string): Promise<string | null> {
@@ -770,9 +867,10 @@ async function scanCodexTokenCost(
   const sinceKey = options.sinceKey ?? localDayKey(addDays(now, -29))
   const untilKey = options.untilKey ?? todayKey
   const allDays: UsageDays = {}
-  const files = await listCodexLogFiles(codexHome)
+  const files = await listCodexLogFiles(codexHome, options)
   const metadataByPath = new Map<string, CodexSessionMetadata | null>()
   const fileBySessionId = new Map<string, string>()
+  let allFilesBySessionIdPromise: Promise<Map<string, string>> | null = null
 
   for (const filePath of files) {
     const metadata = await parseSessionMetadata(filePath)
@@ -787,7 +885,11 @@ async function scanCodexTokenCost(
     sessionId: string,
     cutoffTimestamp: string
   ): Promise<CodexTotals | null> => {
-    const parentFile = fileBySessionId.get(sessionId)
+    let parentFile = fileBySessionId.get(sessionId)
+    if (!parentFile) {
+      allFilesBySessionIdPromise ??= buildSessionFileMap(codexHome)
+      parentFile = (await allFilesBySessionIdPromise).get(sessionId)
+    }
     if (!parentFile || !cutoffTimestamp) {
       return null
     }
@@ -872,30 +974,6 @@ async function readCachedDetailFile(
   } catch {
     return null
   }
-}
-
-function cacheGeneratedDayKey(cache: TokenCostCacheFile): string | null {
-  const generatedAtMs = Date.parse(cache.generatedAt)
-  if (!Number.isFinite(generatedAtMs)) {
-    return null
-  }
-
-  return localDayKey(new Date(generatedAtMs))
-}
-
-function cacheCoveredUntilKey(cache: TokenCostCacheFile): string | null {
-  const latestDailyKey = cache.detail.daily.at(-1)?.date ?? null
-  const generatedDayKey = cacheGeneratedDayKey(cache)
-
-  if (!latestDailyKey) {
-    return generatedDayKey
-  }
-
-  if (!generatedDayKey) {
-    return latestDailyKey
-  }
-
-  return latestDailyKey > generatedDayKey ? latestDailyKey : generatedDayKey
 }
 
 function isRecentCache(cache: TokenCostCacheFile, maxAgeMs: number, nowMs: number): boolean {
@@ -1268,7 +1346,6 @@ export class CodexCostUsageService {
   ): Promise<TokenCostDetail> {
     const now = this.now()
     const todayKey = localDayKey(now)
-    const sinceKey = localDayKey(addDays(now, -29))
     const refreshMinIntervalMs =
       this.options.refreshMinIntervalMs ?? DEFAULT_REFRESH_MIN_INTERVAL_MS
     const cached = await readCachedDetailFile(
@@ -1282,13 +1359,7 @@ export class CodexCostUsageService {
     }
 
     if (!refresh && cached) {
-      const coveredUntilKey = cacheCoveredUntilKey(cached)
-      const replaceSinceKey =
-        coveredUntilKey && coveredUntilKey >= sinceKey && coveredUntilKey <= todayKey
-          ? coveredUntilKey === todayKey
-            ? todayKey
-            : (nextLocalDayKey(coveredUntilKey) ?? sinceKey)
-          : sinceKey
+      const replaceSinceKey = todayKey
       const scannedDetail = await scanCodexTokenCost(instance.id, instance.codexHome, now, {
         sinceKey: replaceSinceKey,
         untilKey: todayKey

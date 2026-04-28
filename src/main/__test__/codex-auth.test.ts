@@ -84,14 +84,32 @@ describe('CodexAccountStore', () => {
     ])
   })
 
-  it('rejects reorder payloads that do not include every saved account', async () => {
+  it('reorders a visible account subset while preserving hidden account slots', async () => {
+    const store = await createStore()
+
+    await store.importAuthPayload(createAuthPayload('a'))
+    await store.importAuthPayload(createAuthPayload('b'))
+    await store.importAuthPayload(createAuthPayload('c'))
+    await store.importAuthPayload(createAuthPayload('d'))
+
+    await store.reorderAccounts(['b', 'd'])
+
+    expect((await store.getSnapshot(false)).accounts.map((account) => account.id)).toEqual([
+      'b',
+      'c',
+      'd',
+      'a'
+    ])
+  })
+
+  it('rejects duplicate accounts in reorder payloads', async () => {
     const store = await createStore()
 
     await store.importAuthPayload(createAuthPayload('a'))
     await store.importAuthPayload(createAuthPayload('b'))
 
-    await expect(store.reorderAccounts(['a'])).rejects.toThrow(
-      'Account reorder payload does not match saved accounts.'
+    await expect(store.reorderAccounts(['b', 'b'])).rejects.toThrow(
+      'Account reorder payload contains duplicate accounts.'
     )
   })
 

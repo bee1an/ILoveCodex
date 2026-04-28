@@ -41,7 +41,9 @@ vi.mock('svelte-dnd-action', () => {
 
   return {
     dragHandle: action,
-    dragHandleZone: action
+    dragHandleZone: action,
+    SHADOW_ITEM_MARKER_PROPERTY_NAME: 'isDndShadowItem',
+    SHADOW_PLACEHOLDER_ITEM_ID: 'id:dnd-shadow-placeholder-0000'
   }
 })
 

@@ -27,6 +27,7 @@ export interface ProgressOptions {
   delay?: number
   duration?: number
   opacity?: number
+  targetWidth?: string
 }
 
 type DestroyActionReturn = {
@@ -197,7 +198,10 @@ export function animateProgress(
   }
 
   const run = (immediate = false): void => {
-    const targetWidth = node.style.width || `${Math.round(node.getBoundingClientRect().width)}px`
+    const targetWidth =
+      options.targetWidth ||
+      node.style.width ||
+      `${Math.round(node.getBoundingClientRect().width)}px`
     gsap.killTweensOf(node)
 
     if (immediate) {

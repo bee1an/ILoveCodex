@@ -48,6 +48,7 @@ export const accountTransferFormats = [
   'cliproxyapi'
 ] as const
 export type AccountTransferFormat = (typeof accountTransferFormats)[number]
+export const defaultWakeModel = 'gpt-5.4-mini'
 
 export interface AppSettings {
   usagePollingMinutes: number
@@ -669,6 +670,14 @@ export function hasFullSessionQuota(rateLimits?: AccountRateLimits): boolean {
 
 export function supportsWakeSessionQuota(rateLimits?: AccountRateLimits): boolean {
   return Boolean(rateLimits && !isFreePlan(rateLimits))
+}
+
+export function hasWakeWeeklyQuotaRemaining(rateLimits?: AccountRateLimits): boolean {
+  return !rateLimits?.secondary || remainingPercent(rateLimits.secondary.usedPercent) > 0
+}
+
+export function canRunWakeRequest(rateLimits?: AccountRateLimits): boolean {
+  return supportsWakeSessionQuota(rateLimits) && hasWakeWeeklyQuotaRemaining(rateLimits)
 }
 
 export function canWakeSessionQuota(rateLimits?: AccountRateLimits): boolean {

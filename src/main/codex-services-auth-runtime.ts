@@ -1,7 +1,8 @@
 import { refreshCodexAuthPayload, type CodexAuthPayload } from './codex-auth'
 import { readAccountRateLimits, wakeAccountRateLimits } from './codex-app-server'
 import {
-  supportsWakeSessionQuota,
+  canRunWakeRequest,
+  defaultWakeModel,
   type AccountRateLimits,
   type AccountSummary,
   type WakeAccountRateLimitsInput,
@@ -317,7 +318,7 @@ export function createCodexServicesAuthRuntime(
   ): Promise<WakeAccountRateLimitsResult> {
     const rateLimits = await readStoredMockUsage(accountId)
 
-    if (!supportsWakeSessionQuota(rateLimits)) {
+    if (!canRunWakeRequest(rateLimits)) {
       return {
         rateLimits,
         requestResult: null
@@ -329,7 +330,7 @@ export function createCodexServicesAuthRuntime(
       requestResult: {
         status: 200,
         accepted: true,
-        model: input?.model?.trim() || 'gpt-5.4',
+        model: input?.model?.trim() || defaultWakeModel,
         prompt: input?.prompt?.trim() || 'ping',
         body: LOCAL_MOCK_WAKE_RESPONSE_BODY
       }

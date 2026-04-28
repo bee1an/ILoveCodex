@@ -47,7 +47,7 @@ function createSchedule(overrides: Partial<AccountWakeSchedule> = {}): AccountWa
   return {
     enabled: true,
     times: ['09:00'],
-    model: 'gpt-5.4',
+    model: 'gpt-5.4-mini',
     prompt: 'ping',
     lastStatus: 'idle',
     ...overrides
@@ -60,7 +60,7 @@ function createWakeResult(body = 'wake ok'): WakeAccountRateLimitsResult {
     requestResult: {
       status: 200,
       accepted: true,
-      model: 'gpt-5.4',
+      model: 'gpt-5.4-mini',
       prompt: 'ping',
       body
     }
@@ -145,7 +145,7 @@ describe('wake scheduler controller', () => {
     await flushAsync()
 
     expect(wakeAccount).toHaveBeenCalledTimes(1)
-    expect(wakeAccount).toHaveBeenCalledWith('a', { model: 'gpt-5.4', prompt: 'ping' })
+    expect(wakeAccount).toHaveBeenCalledWith('a', { model: 'gpt-5.4-mini', prompt: 'ping' })
     expect(snapshot.wakeSchedulesByAccountId.a.lastStatus).toBe('success')
     expect(snapshot.wakeSchedulesByAccountId.a.lastTriggeredAt).toBeTruthy()
   })
@@ -216,6 +216,41 @@ describe('wake scheduler controller', () => {
       wakeSchedulesByAccountId: {
         a: createSchedule({ times: ['10:00'] }),
         b: createSchedule({ enabled: false, times: ['10:00'] })
+      }
+    })
+
+    const wakeAccount = vi.fn(async () => createWakeResult())
+    const controller = createWakeSchedulerController({
+      getSnapshot: async () => snapshot,
+      wakeAccount,
+      updateWakeScheduleRuntime: vi.fn(async () => undefined),
+      onSnapshotChanged: vi.fn(async () => undefined)
+    })
+
+    controller.start()
+    await flushAsync()
+    await vi.advanceTimersByTimeAsync(10 * 60_000)
+
+    expect(wakeAccount).not.toHaveBeenCalled()
+  })
+
+  it('周额度剩余为 0 时不触发定时唤醒', async () => {
+    vi.setSystemTime(new Date(2026, 2, 8, 10, 1, 0, 0))
+    const depletedUsage = createUsage('plus')
+
+    const snapshot = createSnapshot({
+      usageByAccountId: {
+        a: {
+          ...depletedUsage,
+          secondary: {
+            usedPercent: 100,
+            windowDurationMins: 10080,
+            resetsAt: Date.parse('2026-03-15T10:00:00.000Z')
+          }
+        }
+      },
+      wakeSchedulesByAccountId: {
+        a: createSchedule({ times: ['10:00'] })
       }
     })
 

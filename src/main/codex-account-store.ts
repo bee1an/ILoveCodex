@@ -13,7 +13,11 @@ import type {
   UpdateAccountWakeScheduleInput
 } from '../shared/codex'
 import type { CodexPlatformAdapter, ProtectedPayload } from '../shared/codex-platform'
-import { normalizeLocalGatewaySettings, normalizeStatsDisplaySettings } from '../shared/codex'
+import {
+  defaultWakeModel,
+  normalizeLocalGatewaySettings,
+  normalizeStatsDisplaySettings
+} from '../shared/codex'
 import {
   type CodexAuthPayload,
   type LegacyPersistedState,
@@ -85,6 +89,10 @@ export class CodexAccountStore {
         }
       }
     })
+  }
+
+  async getSettings(): Promise<AppSettings> {
+    return this.runStateTask(async () => (await this.readState()).settings)
   }
 
   async updateSettings(nextSettings: Partial<AppSettings>): Promise<void> {
@@ -202,7 +210,7 @@ export class CodexAccountStore {
       const next = normalizeWakeSchedule({
         ...current,
         ...input,
-        model: input.model ?? current?.model ?? 'gpt-5.4',
+        model: input.model ?? current?.model ?? defaultWakeModel,
         prompt: input.prompt ?? current?.prompt ?? 'ping'
       })
 
@@ -644,8 +652,9 @@ export class CodexAccountStore {
     await this.runStateTask(async () => {
       const state = await this.readState()
 
-      if (accountIds.length !== state.accounts.length) {
-        throw new Error('Account reorder payload does not match saved accounts.')
+      const uniqueAccountIds = new Set(accountIds)
+      if (uniqueAccountIds.size !== accountIds.length) {
+        throw new Error('Account reorder payload contains duplicate accounts.')
       }
 
       const accountsById = new Map(state.accounts.map((account) => [account.id, account]))
@@ -655,15 +664,17 @@ export class CodexAccountStore {
           throw new Error(`Account not found: ${accountId}`)
         }
 
-        accountsById.delete(accountId)
         return account
       })
 
-      if (accountsById.size) {
-        throw new Error('Account reorder payload is missing saved accounts.')
+      if (!reorderedAccounts.length) {
+        return
       }
 
-      state.accounts = reorderedAccounts
+      let nextVisibleIndex = 0
+      state.accounts = state.accounts.map((account) =>
+        uniqueAccountIds.has(account.id) ? reorderedAccounts[nextVisibleIndex++] : account
+      )
       await this.writeState(state)
     })
   }

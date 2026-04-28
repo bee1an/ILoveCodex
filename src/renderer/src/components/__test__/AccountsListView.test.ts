@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/svelte'
+import { fireEvent, render, screen, within } from '@testing-library/svelte'
 import { describe, expect, it, vi } from 'vitest'
 import type { AccountRateLimits } from '../../../../shared/codex'
 
@@ -18,7 +18,9 @@ vi.mock('svelte-dnd-action', () => {
 
   return {
     dragHandle: action,
-    dragHandleZone: action
+    dragHandleZone: action,
+    SHADOW_ITEM_MARKER_PROPERTY_NAME: 'isDndShadowItem',
+    SHADOW_PLACEHOLDER_ITEM_ID: 'id:dnd-shadow-placeholder-0000'
   }
 })
 
@@ -37,6 +39,16 @@ import AccountsListView from '../AccountsListView.svelte'
 import { messages } from '../app-view'
 
 const copy = messages['zh-CN']
+
+Object.defineProperty(Element.prototype, 'animate', {
+  configurable: true,
+  value: vi.fn(() => ({
+    cancel: vi.fn(),
+    finished: Promise.resolve(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn()
+  }))
+})
 
 const accounts = [
   {
@@ -144,6 +156,81 @@ describe('AccountsListView', () => {
     await fireEvent.click(screen.getByRole('button', { name: copy.exportSelectedAccounts }))
 
     expect(exportSelectedAccounts).toHaveBeenCalledWith(['acct-1'])
+  })
+
+  it('exports a single account from the row action menu', async () => {
+    const exportSelectedAccounts = vi.fn().mockResolvedValue(undefined)
+
+    renderAccountsListView({
+      exportSelectedAccounts
+    })
+
+    await fireEvent.click(screen.getByRole('button', { name: '更多操作 · tagged@example.com' }))
+    await fireEvent.click(screen.getByRole('button', { name: copy.exportAccount }))
+
+    expect(exportSelectedAccounts).toHaveBeenCalledWith(['acct-1'])
+  })
+
+  it('disables single account export while login actions are busy', async () => {
+    renderAccountsListView({
+      loginActionBusy: true
+    })
+
+    await fireEvent.click(screen.getByRole('button', { name: '更多操作 · tagged@example.com' }))
+
+    expect(
+      (screen.getByRole('button', { name: copy.exportAccount }) as HTMLButtonElement).disabled
+    ).toBe(true)
+  })
+
+  it('keeps usage tied to the dragged account while rendering the dnd shadow item', async () => {
+    const reorderAccounts = vi.fn().mockResolvedValue(undefined)
+    renderAccountsListView({
+      reorderAccounts,
+      usageByAccountId: {
+        'acct-1': createUsage({
+          primary: {
+            usedPercent: 60,
+            windowDurationMins: 300,
+            resetsAt: null
+          },
+          secondary: null
+        }),
+        'acct-2': createUsage({
+          primary: {
+            usedPercent: 20,
+            windowDurationMins: 300,
+            resetsAt: null
+          },
+          secondary: null
+        })
+      }
+    })
+
+    const zone = screen.getByLabelText(copy.accountCount(2))
+    const shadowAccount = {
+      ...accounts[0],
+      id: 'id:dnd-shadow-placeholder-0000',
+      isDndShadowItem: true
+    }
+    const dragDetail = {
+      items: [shadowAccount, accounts[1]],
+      info: {
+        id: 'acct-1',
+        trigger: 'dragStarted',
+        source: 'pointer'
+      }
+    }
+
+    await fireEvent(zone, new CustomEvent('consider', { detail: dragDetail, bubbles: true }))
+
+    expect(
+      within(screen.getByRole('article', { name: 'tagged@example.com' })).getByText('40%')
+    ).toBeTruthy()
+
+    await fireEvent(zone, new CustomEvent('finalize', { detail: dragDetail, bubbles: true }))
+
+    expect(reorderAccounts).toHaveBeenCalledWith(['acct-1', 'acct-2'])
   })
 
   it('shows full usage errors in a popover', async () => {

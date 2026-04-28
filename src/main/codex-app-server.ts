@@ -6,6 +6,7 @@ import type {
   WakeAccountRequestResult,
   WakeAccountRateLimitsInput
 } from '../shared/codex'
+import { defaultWakeModel } from '../shared/codex'
 import type { CodexPlatformAdapter } from '../shared/codex-platform'
 import { resolveChatGptAccountIdFromTokens } from '../shared/openai-auth'
 
@@ -76,7 +77,7 @@ export class AccountRateLimitLookupError extends Error {
 
 const DEFAULT_CHATGPT_BASE_URL = 'https://chatgpt.com/backend-api'
 const CHATGPT_HOSTS = ['https://chatgpt.com', 'https://chat.openai.com'] as const
-const CODEX_WAKE_MODEL = 'gpt-5.4'
+const CODEX_WAKE_MODEL = defaultWakeModel
 const CODEX_WAKE_PROMPT = 'ping'
 const CODEX_WAKE_INSTRUCTIONS = 'Start or refresh this Codex session timer. Reply briefly.'
 

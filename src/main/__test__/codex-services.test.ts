@@ -426,6 +426,24 @@ describe('createCodexServices', () => {
     )
   }
 
+  it('settings.get 只读取 CodexDock 配置，不触发实例和 token/cost 快照', async () => {
+    const env = await createEnvironment()
+    const brokenCodexHome = join(env.userDataPath, 'broken-default-home')
+    await mkdir(env.userDataPath, { recursive: true })
+    await writeFile(brokenCodexHome, 'not-a-directory', 'utf8')
+    const services = createCodexServices({
+      userDataPath: env.userDataPath,
+      defaultWorkspacePath: env.workspacePath,
+      defaultCodexHome: brokenCodexHome,
+      platform: createPlatform()
+    })
+
+    await expect(services.settings.get()).resolves.toMatchObject({
+      language: 'zh-CN',
+      usagePollingMinutes: 15
+    })
+  })
+
   it('opens an isolated account instance without changing the global auth file', async () => {
     const env = await createEnvironment()
     const services = createCodexServices({
@@ -1913,6 +1931,48 @@ describe('createCodexServices', () => {
         planType: 'free',
         primary: {
           usedPercent: 0
+        }
+      },
+      requestResult: null
+    })
+
+    expect(platform.fetch).toHaveBeenCalledTimes(1)
+    expect(platform.fetch).toHaveBeenCalledWith(
+      'https://chatgpt.com/backend-api/wham/usage',
+      expect.objectContaining({
+        method: 'GET'
+      })
+    )
+  })
+
+  it('does not trigger wake-up requests when weekly quota is depleted', async () => {
+    const env = await createEnvironment()
+    const platform = createPlatform()
+    const services = createCodexServices({
+      userDataPath: env.userDataPath,
+      defaultWorkspacePath: env.workspacePath,
+      platform
+    })
+
+    await writeGlobalAuth(env.globalAuthPath, createAuthPayload('acct-a', 'a@example.com'))
+    await services.accounts.importCurrent()
+
+    const account = (await services.getSnapshot()).accounts[0]
+
+    ;(platform.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      createUsageResponse({
+        primaryUsedPercent: 0,
+        secondaryUsedPercent: 100
+      })
+    )
+
+    await expect(services.usage.wake(account.id)).resolves.toMatchObject({
+      rateLimits: {
+        primary: {
+          usedPercent: 0
+        },
+        secondary: {
+          usedPercent: 100
         }
       },
       requestResult: null

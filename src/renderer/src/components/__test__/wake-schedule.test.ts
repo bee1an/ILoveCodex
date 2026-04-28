@@ -4,19 +4,21 @@ import {
   formatWakeScheduleLastTriggeredAt,
   isValidWakeScheduleTime,
   nextWakeScheduleLabel,
+  normalizeWakeScheduleTime,
   normalizeWakeScheduleTimes,
   wakeScheduleSummary
 } from '../wake-schedule'
 
 describe('wake schedule helpers', () => {
   it('去重并排序时间列表', () => {
-    expect(normalizeWakeScheduleTimes(['14:00', '09:00', '14:00', ''])).toEqual(['09:00', '14:00'])
+    expect(normalizeWakeScheduleTimes(['14:00', '9:00', '09:00', ''])).toEqual(['09:00', '14:00'])
   })
 
-  it('校验 HH:mm 时间格式', () => {
+  it('规范化并校验 HH:mm 时间格式', () => {
+    expect(normalizeWakeScheduleTime('6:30')).toBe('06:30')
     expect(isValidWakeScheduleTime('09:30')).toBe(true)
+    expect(isValidWakeScheduleTime('9:30')).toBe(true)
     expect(isValidWakeScheduleTime('24:01')).toBe(false)
-    expect(isValidWakeScheduleTime('9:30')).toBe(false)
   })
 
   it('格式化时间摘要和下次触发时间', () => {

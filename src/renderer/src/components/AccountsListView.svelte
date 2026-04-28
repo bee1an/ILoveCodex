@@ -2,7 +2,13 @@
   import { flip } from 'svelte/animate'
   import { onMount } from 'svelte'
   import { fly } from 'svelte/transition'
-  import { dragHandle, dragHandleZone, type DndEvent as SortEvent } from 'svelte-dnd-action'
+  import {
+    dragHandle,
+    dragHandleZone,
+    SHADOW_ITEM_MARKER_PROPERTY_NAME,
+    SHADOW_PLACEHOLDER_ITEM_ID,
+    type DndEvent as SortEvent
+  } from 'svelte-dnd-action'
 
   import type {
     AccountRateLimits,
@@ -91,6 +97,7 @@
   let usageErrorPopoverAnchorRect: DOMRect | null = null
   let sortableAccounts: AccountSummary[] = []
   let sortInteractionActive = false
+  let sortDraggedAccountId = ''
 
   $: if (
     activeTagFilter !== 'all' &&
@@ -219,6 +226,23 @@
     return wakeScheduleSummaryText(schedule, copy.wakeSchedule)
   }
 
+  function isSortShadowAccount(account: AccountSummary): boolean {
+    const sortableAccount = account as AccountSummary & Record<string, unknown>
+    return (
+      Boolean(sortableAccount[SHADOW_ITEM_MARKER_PROPERTY_NAME]) ||
+      account.id === SHADOW_PLACEHOLDER_ITEM_ID
+    )
+  }
+
+  function sortableAccountId(account: AccountSummary): string {
+    return isSortShadowAccount(account) ? sortDraggedAccountId || account.id : account.id
+  }
+
+  function accountWithSortableId(account: AccountSummary): AccountSummary {
+    const accountId = sortableAccountId(account)
+    return account.id === accountId ? account : { ...account, id: accountId }
+  }
+
   function selectAllVisibleAccounts(): void {
     selectedAccountIds = visibleAccounts.map((account) => account.id)
   }
@@ -248,6 +272,15 @@
     await exportSelectedAccounts(selectedAccountIds)
   }
 
+  async function exportSingleAccount(account: AccountSummary): Promise<void> {
+    if (loginActionBusy) {
+      return
+    }
+
+    closeAccountActionMenu()
+    await exportSelectedAccounts([account.id])
+  }
+
   async function removeCurrentSelection(): Promise<void> {
     if (!selectedAccountIds.length || loginActionBusy) {
       return
@@ -263,10 +296,11 @@
 
   function accountRowTone(account: AccountSummary): string {
     let tone = ''
+    const accountId = sortableAccountId(account)
 
-    if (selectedAccountIds.includes(account.id)) {
+    if (selectedAccountIds.includes(accountId)) {
       tone += 'bg-[var(--surface-selected)]'
-    } else if (activeAccountId === account.id) {
+    } else if (activeAccountId === accountId) {
       tone += 'bg-transparent'
     } else {
       tone += 'bg-transparent'
@@ -276,16 +310,20 @@
   }
 
   function accountLaunchDisabled(account: AccountSummary): boolean {
-    return loginActionBusy || accountActionBusy(account.id) || isLocalMockAccount(account)
+    return (
+      loginActionBusy ||
+      accountActionBusy(sortableAccountId(account)) ||
+      isLocalMockAccount(account)
+    )
   }
 
   function accountRefreshDisabled(account: AccountSummary): boolean {
-    const usageLoading = Boolean(usageLoadingByAccountId[account.id])
+    const usageLoading = Boolean(usageLoadingByAccountId[sortableAccountId(account)])
     return loginActionBusy || usageLoading || isLocalMockAccount(account)
   }
 
   function wakeDialogDisabled(account: AccountSummary): boolean {
-    const usageLoading = Boolean(usageLoadingByAccountId[account.id])
+    const usageLoading = Boolean(usageLoadingByAccountId[sortableAccountId(account)])
     return loginActionBusy || Boolean(wakingAccountId) || usageLoading
   }
 
@@ -357,21 +395,25 @@
 
   function handleSortConsider(event: CustomEvent<SortEvent<AccountSummary>>): void {
     sortInteractionActive = true
+    sortDraggedAccountId = event.detail.info.id
     sortableAccounts = event.detail.items
   }
 
   async function handleSortFinalize(event: CustomEvent<SortEvent<AccountSummary>>): Promise<void> {
+    sortDraggedAccountId = event.detail.info.id
     sortableAccounts = event.detail.items
 
     if (activeTagFilter !== 'all') {
       sortInteractionActive = false
+      sortDraggedAccountId = ''
       return
     }
 
     try {
-      await reorderAccounts(event.detail.items.map((account) => account.id))
+      await reorderAccounts(event.detail.items.map((account) => sortableAccountId(account)))
     } finally {
       sortInteractionActive = false
+      sortDraggedAccountId = ''
     }
   }
 
@@ -625,7 +667,9 @@
       aria-label={copy.accountCount(sortableAccounts.length)}
     >
       {#each sortableAccounts as account, accountIndex (account.id)}
-        {@const usageBadge = accountUsageBadge(usageErrorByAccountId[account.id], account, copy)}
+        {@const accountId = sortableAccountId(account)}
+        {@const actionAccount = accountWithSortableId(account)}
+        {@const usageBadge = accountUsageBadge(usageErrorByAccountId[accountId], account, copy)}
         {@const subscriptionBadge = accountSubscriptionBadge(
           account.subscriptionExpiresAt,
           language,
@@ -634,7 +678,7 @@
         {@const assignableTags = availableTagsForAccount(tags, account)}
         <article
           class={`theme-account-row group grid items-center gap-3 px-2.5 py-2.5 md:grid-cols-[auto_minmax(0,1fr)_auto_auto] ${accountRowTone(
-            account
+            actionAccount
           )}`}
           animate:flip={{ duration: flipDurationMs }}
           aria-label={accountEmail(account, copy)}
@@ -642,18 +686,18 @@
           <div class="flex items-center gap-2">
             <label
               class={`theme-account-selector inline-flex h-7 w-7 flex-none items-center justify-center rounded-[0.35rem] border transition-[border-color,background-color,box-shadow] duration-180 ${
-                selectedAccountIds.includes(account.id)
+                selectedAccountIds.includes(accountId)
                   ? 'border-black/18 bg-white text-black'
                   : 'border-black/10 bg-white text-black/72'
               }`}
               title={copy.selectAccount}
             >
               <Checkbox
-                value={account.id}
-                checked={selectedAccountIds.includes(account.id)}
+                value={accountId}
+                checked={selectedAccountIds.includes(accountId)}
                 disabled={loginActionBusy}
                 ariaLabel={`${copy.selectAccount} · ${accountEmail(account, copy)}`}
-                onCheckedChange={(checked) => setAccountSelected(account.id, checked)}
+                onCheckedChange={(checked) => setAccountSelected(accountId, checked)}
               />
             </label>
             <button
@@ -674,7 +718,7 @@
           <div class="grid min-w-0 gap-2.5 overflow-visible">
             <div class="flex min-w-0 items-center gap-2">
               <span
-                class={`h-2 w-2 flex-none rounded-full ${activeAccountId === account.id ? 'theme-status-active bg-success ring-3 ring-emerald-500/12' : 'theme-status-idle bg-black/14'}`}
+                class={`h-2 w-2 flex-none rounded-full ${activeAccountId === accountId ? 'theme-status-active bg-success ring-3 ring-emerald-500/12' : 'theme-status-idle bg-black/14'}`}
               ></span>
               <p class="min-w-0 truncate text-sm font-medium leading-5 text-ink">
                 {accountEmail(account, copy)}
@@ -683,9 +727,9 @@
 
             <div class="mt-[-2px] flex min-w-0 flex-wrap items-center gap-1.5">
               <span
-                class={`inline-flex flex-none items-center rounded-[0.32rem] px-1.5 py-0.5 text-[10px] font-medium ${planTagClass(usageByAccountId[account.id]?.planType)}`}
+                class={`inline-flex flex-none items-center rounded-[0.32rem] px-1.5 py-0.5 text-[10px] font-medium ${planTagClass(usageByAccountId[accountId]?.planType)}`}
               >
-                {planLabel(usageByAccountId[account.id]?.planType)}
+                {planLabel(usageByAccountId[accountId]?.planType)}
               </span>
 
               {#if subscriptionBadge}
@@ -704,16 +748,16 @@
                 </span>
               {/if}
 
-              {#if showWakeAccount(account.id) && hasEnabledWakeSchedule(account.id)}
+              {#if showWakeAccount(accountId) && hasEnabledWakeSchedule(accountId)}
                 <button
                   class="theme-wake-schedule-pill inline-flex min-w-0 max-w-full items-center rounded-[0.32rem] border border-sky-500/16 bg-sky-500/10 px-2 py-0.75 text-[10px] text-sky-700 transition-colors duration-140 hover:bg-sky-500/14"
                   type="button"
-                  onclick={() => openWakeDialog(account, 'schedule')}
-                  disabled={loginActionBusy || usageLoadingByAccountId[account.id]}
-                  title={wakeScheduleTitle(account.id)}
+                  onclick={() => openWakeDialog(actionAccount, 'schedule')}
+                  disabled={loginActionBusy || usageLoadingByAccountId[accountId]}
+                  title={wakeScheduleTitle(accountId)}
                 >
                   <span class="i-lucide-calendar-clock mr-1.5 h-3.5 w-3.5 flex-none"></span>
-                  <span class="truncate">{wakeScheduleSummary(account.id)}</span>
+                  <span class="truncate">{wakeScheduleSummary(accountId)}</span>
                 </button>
               {/if}
 
@@ -725,7 +769,7 @@
                   <button
                     class="theme-tag-remove ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-transparent p-0 text-emerald-700/72 transition-colors duration-140 hover:bg-emerald-500/12 hover:text-emerald-800"
                     type="button"
-                    onclick={() => void removeTagFromAccount(account, tag.id)}
+                    onclick={() => void removeTagFromAccount(actionAccount, tag.id)}
                     disabled={loginActionBusy || tagMutationBusy}
                     aria-label={`${copy.removeTag} · ${tag.name}`}
                     title={copy.removeTag}
@@ -747,15 +791,15 @@
                   data-no-dnd="true"
                   onpointerdown={stopUsageErrorEvent}
                   onmousedown={stopUsageErrorEvent}
-                  onclick={(event) => toggleUsageErrorPopover(event, account.id)}
-                  aria-expanded={usageErrorPopoverAccountId === account.id}
+                  onclick={(event) => toggleUsageErrorPopover(event, accountId)}
+                  aria-expanded={usageErrorPopoverAccountId === accountId}
                   title={usageBadge.title}
                 >
                   <span class="min-w-0 truncate whitespace-nowrap">{errorLines[0]}</span>
                   <span class="i-lucide-info h-3.5 w-3.5 flex-none opacity-70"></span>
                 </button>
 
-                {#if usageErrorPopoverAccountId === account.id}
+                {#if usageErrorPopoverAccountId === accountId}
                   <div
                     use:portal
                     use:floatingAnchor={{
@@ -800,22 +844,22 @@
           <div
             class="scroll-row flex min-w-0 flex-wrap items-center justify-start gap-1.5 overflow-x-auto self-center md:justify-end"
           >
-            {#if !usageByAccountId[account.id] || supportsWakeSessionQuota(usageByAccountId[account.id])}
+            {#if !usageByAccountId[accountId] || supportsWakeSessionQuota(usageByAccountId[accountId])}
               <div
                 class="theme-soft-panel inline-grid grid-cols-[auto_auto_3.5rem_2.75rem] items-center gap-x-2 rounded-full border border-black/6 bg-black/[0.03] px-2.5 py-1.5 text-[10px] text-muted-strong"
                 title={`${copy.sessionQuota} · ${
-                  usageByAccountId[account.id]?.primary
-                    ? `${remainingPercent(usageByAccountId[account.id].primary?.usedPercent)}%`
+                  usageByAccountId[accountId]?.primary
+                    ? `${remainingPercent(usageByAccountId[accountId].primary?.usedPercent)}%`
                     : '--'
                 }`}
               >
                 <span class="font-medium">{copy.sessionReset}</span>
-                {#if usageLoadingByAccountId[account.id] && !usageByAccountId[account.id]}
+                {#if usageLoadingByAccountId[accountId] && !usageByAccountId[accountId]}
                   <span class="inline-flex h-4 items-center leading-none">…</span>
-                {:else if usageByAccountId[account.id]?.primary}
+                {:else if usageByAccountId[accountId]?.primary}
                   <span class="theme-reset-time-neutral inline-flex h-4 items-center leading-none"
                     >{formatRelativeReset(
-                      usageByAccountId[account.id]?.primary?.resetsAt,
+                      usageByAccountId[accountId]?.primary?.resetsAt,
                       language
                     )}</span
                   >
@@ -827,22 +871,23 @@
                 >
                   <span
                     class="theme-progress-fill block h-full rounded-full bg-black/70"
-                    style={`width: ${progressWidth(usageByAccountId[account.id]?.primary?.usedPercent)}`}
+                    style={`width: ${progressWidth(usageByAccountId[accountId]?.primary?.usedPercent)}`}
                     use:animateProgress={{
+                      targetWidth: progressWidth(usageByAccountId[accountId]?.primary?.usedPercent),
                       delay: Math.min(accountIndex * 0.028, 0.14),
                       duration: 0.46
                     }}
                   ></span>
                 </span>
-                {#if usageLoadingByAccountId[account.id] && !usageByAccountId[account.id]}
+                {#if usageLoadingByAccountId[accountId] && !usageByAccountId[accountId]}
                   <span
                     class="inline-flex h-5 min-w-[2.75rem] items-center justify-end leading-none tabular-nums"
                     >…</span
                   >
-                {:else if usageByAccountId[account.id]?.primary}
+                {:else if usageByAccountId[accountId]?.primary}
                   <span
                     class="inline-flex h-5 min-w-[2.75rem] items-center justify-end leading-none tabular-nums"
-                    >{remainingPercent(usageByAccountId[account.id].primary?.usedPercent)}%</span
+                    >{remainingPercent(usageByAccountId[accountId].primary?.usedPercent)}%</span
                   >
                 {:else}
                   <span
@@ -853,25 +898,25 @@
               </div>
             {/if}
 
-            {#if !usageByAccountId[account.id] || supportsWeeklyQuota(usageByAccountId[account.id])}
+            {#if !usageByAccountId[accountId] || supportsWeeklyQuota(usageByAccountId[accountId])}
               <div
                 class="theme-soft-panel inline-grid grid-cols-[auto_auto_3.5rem_2.75rem] items-center gap-x-2 rounded-full border border-black/6 bg-black/[0.03] px-2.5 py-1.5 text-[10px] text-muted-strong"
                 title={`${copy.weeklyQuota} · ${
-                  usageByAccountId[account.id]?.secondary
-                    ? `${remainingPercent(usageByAccountId[account.id].secondary?.usedPercent)}%`
+                  usageByAccountId[accountId]?.secondary
+                    ? `${remainingPercent(usageByAccountId[accountId].secondary?.usedPercent)}%`
                     : '--'
                 }`}
               >
                 <span class="font-medium">{copy.weeklyReset}</span>
-                {#if usageLoadingByAccountId[account.id] && !usageByAccountId[account.id]}
+                {#if usageLoadingByAccountId[accountId] && !usageByAccountId[accountId]}
                   <span class="inline-flex h-4 items-center leading-none">…</span>
-                {:else if usageByAccountId[account.id]?.secondary}
+                {:else if usageByAccountId[accountId]?.secondary}
                   <span
                     class={`${weeklyResetTimeToneClass(
-                      usageByAccountId[account.id]?.secondary?.resetsAt
+                      usageByAccountId[accountId]?.secondary?.resetsAt
                     )} inline-flex h-4 items-center leading-none`}
                     >{formatRelativeReset(
-                      usageByAccountId[account.id]?.secondary?.resetsAt,
+                      usageByAccountId[accountId]?.secondary?.resetsAt,
                       language
                     )}</span
                   >
@@ -883,22 +928,25 @@
                 >
                   <span
                     class="theme-progress-fill block h-full rounded-full bg-black/70"
-                    style={`width: ${progressWidth(usageByAccountId[account.id]?.secondary?.usedPercent)}`}
+                    style={`width: ${progressWidth(usageByAccountId[accountId]?.secondary?.usedPercent)}`}
                     use:animateProgress={{
+                      targetWidth: progressWidth(
+                        usageByAccountId[accountId]?.secondary?.usedPercent
+                      ),
                       delay: Math.min(accountIndex * 0.028 + 0.03, 0.18),
                       duration: 0.5
                     }}
                   ></span>
                 </span>
-                {#if usageLoadingByAccountId[account.id] && !usageByAccountId[account.id]}
+                {#if usageLoadingByAccountId[accountId] && !usageByAccountId[accountId]}
                   <span
                     class="inline-flex h-5 min-w-[2.75rem] items-center justify-end leading-none tabular-nums"
                     >…</span
                   >
-                {:else if usageByAccountId[account.id]?.secondary}
+                {:else if usageByAccountId[accountId]?.secondary}
                   <span
                     class="inline-flex h-5 min-w-[2.75rem] items-center justify-end leading-none tabular-nums"
-                    >{remainingPercent(usageByAccountId[account.id].secondary?.usedPercent)}%</span
+                    >{remainingPercent(usageByAccountId[accountId].secondary?.usedPercent)}%</span
                   >
                 {:else}
                   <span
@@ -909,8 +957,8 @@
               </div>
             {/if}
 
-            {#if extraLimits(usageByAccountId, account.id).length}
-              {#each extraLimits(usageByAccountId, account.id) as limit (`${account.id}:${limit.limitId ?? 'extra'}`)}
+            {#if extraLimits(usageByAccountId, accountId).length}
+              {#each extraLimits(usageByAccountId, accountId) as limit (`${accountId}:${limit.limitId ?? 'extra'}`)}
                 <div
                   class="theme-soft-panel inline-flex items-center gap-1.5 rounded-full border border-black/6 bg-black/[0.03] px-2.5 py-1.5 text-[10px]"
                 >
@@ -929,12 +977,12 @@
           <div class="flex items-center self-center justify-end gap-1">
             <button
               class={iconRowButton}
-              onclick={() => openAccountInCodex(account.id)}
-              disabled={accountLaunchDisabled(account)}
+              onclick={() => openAccountInCodex(accountId)}
+              disabled={accountLaunchDisabled(actionAccount)}
               aria-label={`${copy.openCodex} · ${accountEmail(account, copy)}`}
               title={copy.openCodex}
             >
-              {#if openingAccountId === account.id}
+              {#if openingAccountId === accountId}
                 <span class="i-lucide-loader-circle h-4 w-4 animate-spin"></span>
               {:else}
                 <span class="i-lucide-square-arrow-out-up-right h-4 w-4"></span>
@@ -942,12 +990,12 @@
             </button>
             <button
               class={iconRowButton}
-              onclick={() => openAccountInIsolatedCodex(account.id)}
-              disabled={accountLaunchDisabled(account)}
+              onclick={() => openAccountInIsolatedCodex(accountId)}
+              disabled={accountLaunchDisabled(actionAccount)}
               aria-label={`${copy.openCodexIsolated} · ${accountEmail(account, copy)}`}
               title={copy.openCodexIsolated}
             >
-              {#if openingIsolatedAccountId === account.id}
+              {#if openingIsolatedAccountId === accountId}
                 <span class="i-lucide-loader-circle h-4 w-4 animate-spin"></span>
               {:else}
                 <span class="i-lucide-copy-plus h-4 w-4"></span>
@@ -955,8 +1003,8 @@
             </button>
             <button
               class={iconRowButton}
-              onclick={() => refreshAccountUsage(account)}
-              disabled={accountRefreshDisabled(account)}
+              onclick={() => refreshAccountUsage(actionAccount)}
+              disabled={accountRefreshDisabled(actionAccount)}
               aria-label={`${copy.refreshQuota} · ${accountEmail(account, copy)}`}
               title={copy.refreshQuota}
             >
@@ -966,14 +1014,14 @@
               <button
                 class={iconRowButton}
                 type="button"
-                onclick={(event) => toggleAccountActionMenu(event, account.id)}
+                onclick={(event) => toggleAccountActionMenu(event, accountId)}
                 aria-label={`${accountMoreActionsLabel()} · ${accountEmail(account, copy)}`}
                 title={accountMoreActionsLabel()}
               >
                 <span class="i-lucide-ellipsis h-4 w-4"></span>
               </button>
 
-              {#if accountActionMenuAccountId === account.id}
+              {#if accountActionMenuAccountId === accountId}
                 <div
                   use:portal
                   use:floatingAnchor={{
@@ -993,20 +1041,20 @@
                     {accountMoreActionsLabel()}
                   </div>
 
-                  {#if showWakeAccount(account.id)}
+                  {#if showWakeAccount(accountId)}
                     <button
                       class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-colors duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                       type="button"
                       onclick={() => {
-                        openWakeDialog(account)
+                        openWakeDialog(actionAccount)
                         closeAccountActionMenu()
                       }}
-                      disabled={wakeDialogDisabled(account)}
+                      disabled={wakeDialogDisabled(actionAccount)}
                     >
                       <span
                         class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-colors duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink"
                       >
-                        {#if wakingAccountId === account.id}
+                        {#if wakingAccountId === accountId}
                           <span class="i-lucide-loader-circle h-4 w-4 animate-spin"></span>
                         {:else}
                           <span class="i-lucide-alarm-clock h-4 w-4"></span>
@@ -1020,15 +1068,15 @@
                     class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-colors duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                     type="button"
                     onclick={() => {
-                      openAccountInIsolatedCodex(account.id)
+                      openAccountInIsolatedCodex(accountId)
                       closeAccountActionMenu()
                     }}
-                    disabled={accountLaunchDisabled(account)}
+                    disabled={accountLaunchDisabled(actionAccount)}
                   >
                     <span
                       class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-colors duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink"
                     >
-                      {#if openingIsolatedAccountId === account.id}
+                      {#if openingIsolatedAccountId === accountId}
                         <span class="i-lucide-loader-circle h-4 w-4 animate-spin"></span>
                       {:else}
                         <span class="i-lucide-copy-plus h-4 w-4"></span>
@@ -1038,10 +1086,24 @@
                   </button>
 
                   <button
+                    class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-colors duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+                    type="button"
+                    onclick={() => void exportSingleAccount(actionAccount)}
+                    disabled={loginActionBusy}
+                  >
+                    <span
+                      class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-colors duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink"
+                    >
+                      <span class="i-lucide-download h-4 w-4"></span>
+                    </span>
+                    <span class="flex-1">{copy.exportAccount}</span>
+                  </button>
+
+                  <button
                     class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-danger shadow-none outline-none transition-colors duration-140 hover:bg-danger/10 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                     type="button"
                     onclick={() => {
-                      removeAccount(account)
+                      removeAccount(actionAccount)
                       closeAccountActionMenu()
                     }}
                     disabled={loginActionBusy}
@@ -1059,7 +1121,7 @@
                     <button
                       class="theme-tag-picker-item group flex w-full appearance-none items-center gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-colors duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98]"
                       type="button"
-                      onclick={() => openAccountTagMenuFromActionMenu(account.id)}
+                      onclick={() => openAccountTagMenuFromActionMenu(accountId)}
                     >
                       <span
                         class="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[var(--surface-soft)] text-[var(--ink-faint)] transition-colors duration-140 group-hover:bg-[var(--paper)] group-hover:text-ink"
@@ -1075,7 +1137,7 @@
                 </div>
               {/if}
 
-              {#if accountTagMenuAccountId === account.id}
+              {#if accountTagMenuAccountId === accountId}
                 <div
                   use:portal
                   use:floatingAnchor={{
@@ -1104,7 +1166,7 @@
                       <button
                         class="theme-tag-picker-item group flex w-full appearance-none items-center justify-between gap-2.5 rounded-[0.75rem] border-0 bg-transparent px-2.5 py-2 text-left text-[13px] font-medium text-ink shadow-none outline-none transition-colors duration-140 hover:bg-[var(--surface-hover)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                         type="button"
-                        onclick={() => void addTagToAccount(account, tag.id)}
+                        onclick={() => void addTagToAccount(actionAccount, tag.id)}
                         disabled={loginActionBusy || tagMutationBusy}
                       >
                         <span class="flex-1 truncate">{tag.name}</span>

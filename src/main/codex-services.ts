@@ -22,9 +22,9 @@ import { CodexProviderStore } from './codex-providers'
 import {
   type AppSnapshot,
   type CodexInstanceSummary,
+  canRunWakeRequest,
   isLocalMockAccount,
   resolveBestAccount,
-  supportsWakeSessionQuota,
   type WakeAccountRateLimitsResult
 } from '../shared/codex'
 import type {
@@ -387,7 +387,7 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
       current: async () => (await getSnapshot()).currentSession
     },
     settings: {
-      get: async () => (await getSnapshot()).settings,
+      get: async () => store.getSettings(),
       update: async (nextSettings) => {
         await store.updateSettings(nextSettings)
         return getSnapshot()
@@ -416,7 +416,7 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
         const currentAccountId = currentUsage.accountId
         const currentRateLimits = currentUsage.rateLimits
 
-        if (!supportsWakeSessionQuota(currentRateLimits)) {
+        if (!canRunWakeRequest(currentRateLimits)) {
           return {
             rateLimits: currentRateLimits,
             requestResult: null

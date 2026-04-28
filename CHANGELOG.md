@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.1 - 2026-04-28
+
+This patch release cleans up upgraded app data, improves startup responsiveness, and polishes account and wake workflows.
+
+- Added one-time migration that moves legacy Electron runtime data out of the CodexDock config folder while preserving saved accounts, providers, instances, local mock state, and token-cost caches.
+- Kept existing browser runtime files safe during migration by moving conflicting legacy files into a timestamped backup folder instead of overwriting or deleting them.
+- Fixed startup settings loading so opening the app no longer needs a full snapshot or token-cost scan before the first window can initialize, and kept `cdock` aligned with the new config path behavior.
+- Changed automatic token-cost refreshes to merge cached history with today's local logs, while keeping manual refresh available for full history rebuilds.
+- Added subscription-expiration tracking from OpenAI auth claims and surfaced the metadata through account storage, imports, exports, CLI output, and desktop account notifications.
+- Improved account-list reordering, usage-state preservation, wake scheduling defaults, and wake eligibility checks so filtered account views and depleted weekly quota behave more predictably.
+
 ## 0.4.0 - 2026-04-25
 
 This release adds a local gateway for reusing CodexDock accounts from OpenAI-compatible clients and expands provider metadata for gateway routing.
