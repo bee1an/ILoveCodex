@@ -32,11 +32,17 @@ import type {
   CreateCodexServicesOptions,
   StoredAuthRefreshResult
 } from './codex-services-shared'
-import { DEFAULT_CODEX_INSTANCE_ID } from './codex-services-shared'
+import { DEFAULT_CODEX_INSTANCE_ID, customProviderLabel } from './codex-services-shared'
 import { createCodexServicesAuthRuntime } from './codex-services-auth-runtime'
 import { createCodexCostUsageService } from './codex-cost-usage'
 import { createCodexServicesDiagnosticsRuntime } from './codex-services-diagnostics-runtime'
 import { createCodexServicesInstanceRuntime } from './codex-services-instance-runtime'
+import {
+  copyCodexSessionToProvider,
+  listCodexSessionProjects,
+  listCodexSessions,
+  readCodexSessionDetail
+} from './codex-sessions'
 import { CodexLocalGatewayService } from './local-gateway'
 
 export type { CodexServices, CreateCodexServicesOptions } from './codex-services-shared'
@@ -185,6 +191,23 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
         initialized: false
       }
     }
+  }
+
+  async function ensureProviderInstanceSummary(providerId: string): Promise<CodexInstanceSummary> {
+    const provider = await providerStore.get(providerId)
+    const { rootDir } = instanceStore.getDefaults()
+    const providerCodexHome = join(rootDir, `provider-${providerId}`)
+    const existing = (await instanceStore.list()).find(
+      (instance) => resolve(instance.codexHome) === resolve(providerCodexHome)
+    )
+    const instance =
+      existing ??
+      (await instanceStore.create({
+        name: `Provider ${customProviderLabel(provider)}`,
+        codexHome: providerCodexHome
+      }))
+
+    return fallbackNamedInstanceSummary(instance)
   }
 
   async function getFallbackSnapshotForLoginEvent(
@@ -384,7 +407,29 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
       run: runDoctor
     },
     session: {
-      current: async () => (await getSnapshot()).currentSession
+      current: async () => (await getSnapshot()).currentSession,
+      projects: async (input) => listCodexSessionProjects(await listCodexInstances(), input),
+      list: async (input) => listCodexSessions(await listCodexInstances(), input),
+      detail: async (input) => readCodexSessionDetail(await listCodexInstances(), input),
+      copyToProvider: async (input) => {
+        const [instances, targetProvider] = await Promise.all([
+          listCodexInstances(),
+          input.targetProviderId
+            ? providerStore.get(input.targetProviderId)
+            : Promise.resolve(undefined)
+        ])
+        const targetInstance = input.targetInstanceId
+          ? instances.find((instance) => instance.id === input.targetInstanceId)
+          : input.targetProviderId
+            ? await ensureProviderInstanceSummary(input.targetProviderId)
+            : undefined
+
+        if (!targetInstance) {
+          throw new Error('Target instance not found.')
+        }
+
+        return copyCodexSessionToProvider(instances, input, targetInstance, targetProvider)
+      }
     },
     settings: {
       get: async () => store.getSettings(),

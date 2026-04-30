@@ -42,7 +42,6 @@
     UpdateCustomProviderInput
   } from '../../shared/codex'
   import {
-    filterLocalMockAppSnapshot,
     accountTransferFormats,
     defaultWakeModel,
     defaultStatsDisplaySettings,
@@ -418,8 +417,7 @@
       : nextSnapshot
 
     rawSnapshot = snapshotSource
-    const visibleSnapshot =
-      appMeta.isPackaged === false ? filterLocalMockAppSnapshot(snapshotSource) : snapshotSource
+    const visibleSnapshot = snapshotSource
 
     const nextUsageByAccountId = accountScopedRecord(
       visibleSnapshot.accounts,
@@ -1479,6 +1477,11 @@
               {removeAccounts}
               {exportSelectedAccounts}
               readTokenCost={(input) => window.codexApp.readTokenCost(input)}
+              listCodexSessionProjects={() => window.codexApp.listCodexSessionProjects()}
+              listCodexSessions={(input) => window.codexApp.listCodexSessions(input)}
+              readCodexSessionDetail={(input) => window.codexApp.readCodexSessionDetail(input)}
+              copyCodexSessionToProvider={(input) =>
+                window.codexApp.copyCodexSessionToProvider(input)}
               {startLogin}
               importCurrent={() =>
                 runAction('import', () => window.codexApp.importCurrentAccount())}

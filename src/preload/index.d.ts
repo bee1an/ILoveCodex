@@ -7,8 +7,16 @@ import type {
   AppSettings,
   AppSnapshot,
   AppUpdateState,
+  CopyCodexSessionToProviderInput,
+  CopyCodexSessionToProviderResult,
   CreateCustomProviderInput,
   CustomProviderDetail,
+  CodexSessionDetail,
+  CodexSessionProjectsResult,
+  CodexSessionsResult,
+  ListCodexSessionProjectsInput,
+  ListCodexSessionsInput,
+  ReadCodexSessionDetailInput,
   LoginAttempt,
   LoginEvent,
   LoginMethod,
@@ -66,6 +74,14 @@ interface CodexDesktopApi {
     input?: WakeAccountRateLimitsInput
   ) => Promise<WakeAccountRateLimitsResult>
   readTokenCost: (input?: TokenCostReadOptions) => Promise<TokenCostDetail>
+  listCodexSessionProjects: (
+    input?: ListCodexSessionProjectsInput
+  ) => Promise<CodexSessionProjectsResult>
+  listCodexSessions: (input?: ListCodexSessionsInput) => Promise<CodexSessionsResult>
+  readCodexSessionDetail: (input: ReadCodexSessionDetailInput) => Promise<CodexSessionDetail>
+  copyCodexSessionToProvider: (
+    input: CopyCodexSessionToProviderInput
+  ) => Promise<CopyCodexSessionToProviderResult>
   getLocalGatewayStatus: () => Promise<LocalGatewayStatus>
   startLocalGateway: () => Promise<AppSnapshot>
   stopLocalGateway: () => Promise<AppSnapshot>

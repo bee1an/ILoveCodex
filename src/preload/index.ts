@@ -7,8 +7,16 @@ import type {
   AppSettings,
   AppSnapshot,
   AppUpdateState,
+  CopyCodexSessionToProviderInput,
+  CopyCodexSessionToProviderResult,
   CreateCustomProviderInput,
   CustomProviderDetail,
+  CodexSessionDetail,
+  CodexSessionProjectsResult,
+  CodexSessionsResult,
+  ListCodexSessionProjectsInput,
+  ListCodexSessionsInput,
+  ReadCodexSessionDetailInput,
   UpdateCustomProviderInput,
   LoginEvent,
   LoginMethod,
@@ -73,6 +81,18 @@ const codexApp = {
     ipcRenderer.invoke('codex:wake-account-rate-limits', accountId, input),
   readTokenCost: (input?: TokenCostReadOptions): Promise<TokenCostDetail> =>
     ipcRenderer.invoke('codex:read-token-cost', input),
+  listCodexSessionProjects: (
+    input?: ListCodexSessionProjectsInput
+  ): Promise<CodexSessionProjectsResult> =>
+    ipcRenderer.invoke('codex:list-session-projects', input),
+  listCodexSessions: (input?: ListCodexSessionsInput): Promise<CodexSessionsResult> =>
+    ipcRenderer.invoke('codex:list-sessions', input),
+  readCodexSessionDetail: (input: ReadCodexSessionDetailInput): Promise<CodexSessionDetail> =>
+    ipcRenderer.invoke('codex:read-session-detail', input),
+  copyCodexSessionToProvider: (
+    input: CopyCodexSessionToProviderInput
+  ): Promise<CopyCodexSessionToProviderResult> =>
+    ipcRenderer.invoke('codex:copy-session-to-provider', input),
   getLocalGatewayStatus: () => ipcRenderer.invoke('codex:get-local-gateway-status'),
   startLocalGateway: () => ipcRenderer.invoke('codex:start-local-gateway'),
   stopLocalGateway: () => ipcRenderer.invoke('codex:stop-local-gateway'),

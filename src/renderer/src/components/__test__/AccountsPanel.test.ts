@@ -212,6 +212,21 @@ function renderAccountsPanel(
         },
         daily: []
       }),
+      listCodexSessionProjects: vi.fn().mockResolvedValue({
+        projects: [],
+        errorsByInstanceId: {},
+        scannedAt: '2026-04-21T00:00:00.000Z'
+      }),
+      listCodexSessions: vi.fn().mockResolvedValue({
+        sessions: [],
+        errorsByInstanceId: {},
+        scannedAt: '2026-04-21T00:00:00.000Z'
+      }),
+      readCodexSessionDetail: vi.fn().mockResolvedValue({
+        session: null,
+        messages: []
+      }),
+      copyCodexSessionToProvider: vi.fn().mockResolvedValue({}),
       startLogin: vi.fn(),
       importCurrent: vi.fn(),
       ...overrideProps

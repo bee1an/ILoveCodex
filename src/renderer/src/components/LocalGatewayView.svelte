@@ -6,9 +6,6 @@
   type StatusFilter = 'all' | 'ok' | 'warn' | 'error'
 
   export let copy: LocalizedCopy
-  export let iconRowButton: string
-  export let primaryActionButton: string
-  export let compactGhostButton: string
   export let localGatewayStatus: LocalGatewayStatus
   export let localGatewayBusy = false
   export let localGatewayApiKey = ''

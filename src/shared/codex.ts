@@ -116,6 +116,7 @@ export interface CodexInstanceSummary {
   lastPid?: number
   running: boolean
   initialized: boolean
+  providerIds?: string[]
 }
 
 export interface CreateCodexInstanceInput {
@@ -264,6 +265,115 @@ export interface CurrentSessionSummary {
   subscriptionExpiresAt?: string
   lastRefresh?: string
   storedAccountId?: string
+}
+
+export type CodexSessionStatus = 'active' | 'archived'
+
+export interface CodexSessionSummary {
+  id: string
+  instanceId: string
+  instanceName: string
+  codexHome: string
+  filePath: string
+  modelProvider: string
+  modelProviderLabel?: string
+  projectPath?: string
+  projectName?: string
+  gitBranch?: string
+  sourceLabel?: string
+  originator?: string
+  createdAt?: string
+  updatedAt: string
+  status: CodexSessionStatus
+  title: string
+  lastMessage: string
+  preview: string
+}
+
+export interface CodexSessionProjectSummary {
+  key: string
+  instanceId: string
+  instanceName: string
+  codexHome: string
+  modelProvider: string
+  modelProviderLabel?: string
+  projectPath?: string
+  projectName?: string
+  sessionCount: number
+  activeCount: number
+  archivedCount: number
+  latestAt: string
+}
+
+export interface ListCodexSessionsInput {
+  instanceId?: string
+  status?: CodexSessionStatus
+  modelProvider?: string
+  projectPath?: string
+  projectQuery?: string
+  limit?: number
+  offset?: number
+}
+
+export interface CodexSessionsResult {
+  sessions: CodexSessionSummary[]
+  errorsByInstanceId: Record<string, string>
+  scannedAt: string
+}
+
+export interface ListCodexSessionProjectsInput {
+  instanceId?: string
+  projectQuery?: string
+}
+
+export interface CodexSessionProjectsResult {
+  projects: CodexSessionProjectSummary[]
+  errorsByInstanceId: Record<string, string>
+  scannedAt: string
+}
+
+export interface ReadCodexSessionDetailInput {
+  instanceId: string
+  filePath: string
+}
+
+export interface CopyCodexSessionToProviderInput {
+  sourceInstanceId: string
+  sourceFilePath: string
+  targetInstanceId?: string
+  targetProviderId?: string
+  targetModelProvider?: string
+  targetModelProviderLabel?: string
+}
+
+export interface CopyCodexSessionToProviderResult {
+  targetInstanceId: string
+  targetInstanceName: string
+  targetCodexHome: string
+  targetFilePath: string
+  targetModelProvider: string
+  targetModel: string
+  session: CodexSessionSummary
+}
+
+export type CodexSessionMessageRole =
+  | 'user'
+  | 'assistant'
+  | 'system'
+  | 'developer'
+  | 'tool'
+  | 'other'
+
+export interface CodexSessionMessage {
+  id: string
+  role: CodexSessionMessageRole
+  text: string
+  createdAt?: string
+}
+
+export interface CodexSessionDetail {
+  session: CodexSessionSummary
+  messages: CodexSessionMessage[]
 }
 
 export interface TokenCostSummary {

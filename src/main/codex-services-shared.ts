@@ -10,32 +10,40 @@ import { resolveWindowsCodexDesktopExecutable } from './codex-launcher'
 import { CodexProviderStore } from './codex-providers'
 import { AccountRateLimitLookupError } from './codex-app-server'
 import {
-  type AccountWakeSchedule,
-  type AccountTag,
   type AccountRateLimits,
   type AccountSummary,
+  type AccountTag,
   type AccountTransferFormat,
+  type AccountWakeSchedule,
   type AppSettings,
   type AppSnapshot,
   type CodexInstanceDefaults,
   type CodexInstanceSummary,
+  type CodexSessionDetail,
+  type CodexSessionProjectsResult,
+  type CodexSessionsResult,
+  type CopyCodexSessionToProviderInput,
+  type CopyCodexSessionToProviderResult,
   type CreateCodexInstanceInput,
   type CreateCustomProviderInput,
-  type CustomProviderDetail,
   type CurrentSessionSummary,
+  type CustomProviderDetail,
+  type CustomProviderSummary,
   type DoctorReport,
   type HealthCheckResult,
+  type ListCodexSessionProjectsInput,
+  type ListCodexSessionsInput,
   type LoginEvent,
-  type ProviderCheckReport,
-  type CustomProviderSummary,
   type LocalGatewayStatus,
+  type ProviderCheckReport,
+  type ReadCodexSessionDetailInput,
   type TokenCostDetail,
   type TokenCostReadOptions,
-  type WakeAccountRateLimitsResult,
-  type WakeAccountRateLimitsInput,
   type UpdateAccountWakeScheduleInput,
+  type UpdateCodexInstanceInput,
   type UpdateCustomProviderInput,
-  type UpdateCodexInstanceInput
+  type WakeAccountRateLimitsInput,
+  type WakeAccountRateLimitsResult
 } from '../shared/codex'
 import type { CodexPlatformAdapter } from '../shared/codex-platform'
 import { decodeJwtPayload } from '../shared/openai-auth'
@@ -324,6 +332,12 @@ export interface CodexServices {
   }
   session: {
     current(): Promise<CurrentSessionSummary | null>
+    projects(input?: ListCodexSessionProjectsInput): Promise<CodexSessionProjectsResult>
+    list(input?: ListCodexSessionsInput): Promise<CodexSessionsResult>
+    detail(input: ReadCodexSessionDetailInput): Promise<CodexSessionDetail>
+    copyToProvider(
+      input: CopyCodexSessionToProviderInput
+    ): Promise<CopyCodexSessionToProviderResult>
   }
   settings: {
     get(): Promise<AppSettings>

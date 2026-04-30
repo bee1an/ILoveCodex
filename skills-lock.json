@@ -11,6 +11,12 @@
       "sourceType": "github",
       "computedHash": "318f9fca2441a3e06fedc336e195dd18be5dbe901064e4fa71b76b40b096ab3a"
     },
+    "transitions-dev": {
+      "source": "jakubantalik/transitions-dev",
+      "sourceType": "github",
+      "skillPath": "skills/transitions-dev/SKILL.md",
+      "computedHash": "ef105c65e70d52674942e70e7649e57a97de881475086e998a0f6484313000aa"
+    },
     "unocss": {
       "source": "antfu/skills",
       "sourceType": "github",

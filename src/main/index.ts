@@ -38,8 +38,12 @@ import {
   resolveBestAccount,
   type AppSettings,
   type AppSnapshot,
+  type CopyCodexSessionToProviderInput,
   type LoginEvent,
   type LoginMethod,
+  type ListCodexSessionProjectsInput,
+  type ListCodexSessionsInput,
+  type ReadCodexSessionDetailInput,
   type TokenCostReadOptions,
   type UpdateAccountWakeScheduleInput,
   type WakeAccountRateLimitsInput
@@ -72,16 +76,17 @@ let homebrewUpdateQuitTimer: ReturnType<typeof setTimeout> | null = null
 let homebrewUpdateQuitCountdownStarted = false
 const defaultWorkspacePath = process.cwd()
 const isLocalEnvironment = !app.isPackaged
-const configuredAppConfigPath = isLocalEnvironment
-  ? join(homedir(), '.config', 'codexdock-local')
-  : join(homedir(), '.config', 'codexdock')
-function shouldUseLocalMockCodexHome(): boolean {
+const productionAppConfigPath = join(homedir(), '.config', 'codexdock')
+const localMockAppConfigPath = join(homedir(), '.config', 'codexdock-local')
+let useLocalMockDataSource = isLocalEnvironment && shouldUseLocalMockDataSource()
+
+function shouldUseLocalMockDataSource(): boolean {
   if (!isLocalEnvironment) {
     return false
   }
 
   try {
-    const raw = readFileSync(join(configuredAppConfigPath, 'codex-accounts.json'), 'utf8')
+    const raw = readFileSync(join(localMockAppConfigPath, 'codex-accounts.json'), 'utf8')
     const parsed = JSON.parse(raw) as { settings?: { showLocalMockData?: unknown } }
     return parsed.settings?.showLocalMockData !== false
   } catch {
@@ -89,21 +94,48 @@ function shouldUseLocalMockCodexHome(): boolean {
   }
 }
 
-const configuredCodexHomePath = isLocalEnvironment
-  ? shouldUseLocalMockCodexHome()
-    ? join(configuredAppConfigPath, '.codex')
+function configuredAppConfigPath(): string {
+  return isLocalEnvironment && useLocalMockDataSource
+    ? localMockAppConfigPath
+    : productionAppConfigPath
+}
+
+function configuredCodexHomePath(): string {
+  return isLocalEnvironment && useLocalMockDataSource
+    ? join(localMockAppConfigPath, '.codex')
     : join(homedir(), '.codex')
-  : join(homedir(), '.codex')
+}
 
-async function importRealLocalAccounts(services: CodexServices): Promise<void> {
-  const realAccountsStateFile = join(homedir(), '.config', 'codexdock', 'codex-accounts.json')
-  const realCodexAuthFile = join(homedir(), '.codex', 'auth.json')
-
+async function persistLocalMockDataSourcePreference(enabled: boolean): Promise<void> {
+  const stateFile = join(localMockAppConfigPath, 'codex-accounts.json')
+  let parsed: Record<string, unknown> = {}
   try {
-    await services.accounts.importFromStateFile(realAccountsStateFile)
+    parsed = JSON.parse(await fs.readFile(stateFile, 'utf8')) as Record<string, unknown>
   } catch {
-    await services.accounts.importFromAuthFile(realCodexAuthFile)
+    parsed = {}
   }
+
+  const settings =
+    typeof parsed.settings === 'object' && parsed.settings !== null
+      ? (parsed.settings as Record<string, unknown>)
+      : {}
+
+  await fs.mkdir(localMockAppConfigPath, { recursive: true })
+  await fs.writeFile(
+    stateFile,
+    `${JSON.stringify(
+      {
+        ...parsed,
+        settings: {
+          ...settings,
+          showLocalMockData: enabled
+        }
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  )
 }
 
 function buildTrayUsageMenu(snapshot: AppSnapshot): MenuItemConstructorOptions[] {
@@ -447,7 +479,7 @@ function createTray(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
   const legacyUserDataMigration = await migrateLegacyElectronUserData({
-    legacyConfigPath: configuredAppConfigPath,
+    legacyConfigPath: configuredAppConfigPath(),
     defaultUserDataPath: app.getPath('userData')
   })
   if (legacyUserDataMigration.moved.length || legacyUserDataMigration.backedUp.length) {
@@ -471,31 +503,28 @@ app.whenReady().then(async () => {
   }
 
   const cliArgs = extractCliArgs(process.argv)
-  const shouldBootstrapLocalMockData =
-    isLocalEnvironment && !cliArgs && shouldUseLocalMockCodexHome()
+  const shouldBootstrapLocalMockData = isLocalEnvironment && !cliArgs && useLocalMockDataSource
   const loginEventListeners = new Set<(event: LoginEvent) => void>()
   const platform = createElectronCodexPlatformAdapter()
-  codexServices = createCodexServices({
-    userDataPath: configuredAppConfigPath,
-    defaultWorkspacePath,
-    defaultCodexHome: configuredCodexHomePath,
-    platform,
-    emitLoginEvent: (event) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('codex:login-event', event)
-      }
-      for (const listener of loginEventListeners) {
-        listener(event)
-      }
-      void refreshTrayTitle()
-    }
-  })
 
-  if (isLocalEnvironment && !shouldUseLocalMockCodexHome()) {
-    await importRealLocalAccounts(codexServices)
-  }
+  const createRuntimeServices = (): CodexServices =>
+    createCodexServices({
+      userDataPath: configuredAppConfigPath(),
+      defaultWorkspacePath,
+      defaultCodexHome: configuredCodexHomePath(),
+      platform,
+      emitLoginEvent: (event) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('codex:login-event', event)
+        }
+        for (const listener of loginEventListeners) {
+          listener(event)
+        }
+        void refreshTrayTitle()
+      }
+    })
 
-  if (shouldBootstrapLocalMockData) {
+  const bootstrapLocalMockData = async (): Promise<void> => {
     const seeded = await seedLocalMockData(codexServices)
     if (seeded) {
       console.info('Seeded local mock data.')
@@ -507,6 +536,19 @@ app.whenReady().then(async () => {
         `Refreshed local mock data. usage=${refreshed.usageRefreshed} scheduleErrors=${refreshed.scheduleErrorsCleared}`
       )
     }
+  }
+
+  const stopRunningGatewayBeforeRuntimeSwap = async (): Promise<void> => {
+    if ((await codexServices.gateway.status()).running) {
+      await codexServices.gateway.stop()
+    }
+  }
+
+  codexServices = createRuntimeServices()
+  await codexServices.settings.update({ showLocalMockData: useLocalMockDataSource })
+
+  if (shouldBootstrapLocalMockData) {
+    await bootstrapLocalMockData()
   }
 
   if (cliArgs) {
@@ -595,8 +637,18 @@ app.whenReady().then(async () => {
   ipcMain.handle('codex:get-app-meta', () => getAppMeta())
   ipcMain.handle('codex:get-update-state', () => resolveUpdateState())
   ipcMain.handle('codex:update-settings', async (_, nextSettings: Partial<AppSettings>) => {
-    if (isLocalEnvironment && nextSettings.showLocalMockData === false) {
-      await importRealLocalAccounts(codexServices)
+    if (
+      isLocalEnvironment &&
+      typeof nextSettings.showLocalMockData === 'boolean' &&
+      nextSettings.showLocalMockData !== useLocalMockDataSource
+    ) {
+      await stopRunningGatewayBeforeRuntimeSwap()
+      useLocalMockDataSource = nextSettings.showLocalMockData
+      await persistLocalMockDataSourcePreference(useLocalMockDataSource)
+      codexServices = createRuntimeServices()
+      if (useLocalMockDataSource) {
+        await bootstrapLocalMockData()
+      }
     }
 
     const snapshot = await codexServices.settings.update(nextSettings)
@@ -838,6 +890,18 @@ app.whenReady().then(async () => {
       }, 0)
     }
   })
+  ipcMain.handle('codex:list-sessions', (_, input?: ListCodexSessionsInput) =>
+    codexServices.session.list(input)
+  )
+  ipcMain.handle('codex:list-session-projects', (_, input?: ListCodexSessionProjectsInput) =>
+    codexServices.session.projects(input)
+  )
+  ipcMain.handle('codex:read-session-detail', (_, input: ReadCodexSessionDetailInput) =>
+    codexServices.session.detail(input)
+  )
+  ipcMain.handle('codex:copy-session-to-provider', (_, input: CopyCodexSessionToProviderInput) =>
+    codexServices.session.copyToProvider(input)
+  )
   ipcMain.handle('codex:get-local-gateway-status', () => codexServices.gateway.status())
   ipcMain.handle('codex:start-local-gateway', async () => {
     await codexServices.gateway.start()

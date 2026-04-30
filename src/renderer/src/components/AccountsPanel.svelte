@@ -8,13 +8,20 @@
     AccountWakeSchedule,
     AppLanguage,
     CodexInstanceSummary,
+    CodexSessionDetail,
+    CodexSessionProjectsResult,
+    CodexSessionsResult,
+    CopyCodexSessionToProviderInput,
+    CopyCodexSessionToProviderResult,
     CustomProviderDetail,
     CustomProviderSummary,
     LocalGatewayStatus,
+    ListCodexSessionsInput,
     StatsDisplaySettings,
     TokenCostDetail,
     TokenCostReadOptions,
     TokenCostSummary,
+    ReadCodexSessionDetailInput,
     UpdateCustomProviderInput
   } from '../../../shared/codex'
   import type { LocalizedCopy } from './app-view'
@@ -24,6 +31,7 @@
   import Checkbox from './Checkbox.svelte'
   import CostStatsView from './CostStatsView.svelte'
   import LocalGatewayView from './LocalGatewayView.svelte'
+  import SessionsView from './SessionsView.svelte'
   import { taggedAccountCount as taggedAccountCountForAccounts } from './accounts-panel-account'
   import {
     buildProviderUpdateInput,
@@ -96,10 +104,18 @@
   export let removeAccounts: (accountIds: string[]) => Promise<void>
   export let exportSelectedAccounts: (accountIds: string[]) => Promise<void>
   export let readTokenCost: (input?: TokenCostReadOptions) => Promise<TokenCostDetail>
+  export let listCodexSessionProjects: () => Promise<CodexSessionProjectsResult>
+  export let listCodexSessions: (input?: ListCodexSessionsInput) => Promise<CodexSessionsResult>
+  export let readCodexSessionDetail: (
+    input: ReadCodexSessionDetailInput
+  ) => Promise<CodexSessionDetail>
+  export let copyCodexSessionToProvider: (
+    input: CopyCodexSessionToProviderInput
+  ) => Promise<CopyCodexSessionToProviderResult>
   export let startLogin: (method: 'browser' | 'device') => void
   export let importCurrent: () => void
 
-  let currentView: 'accounts' | 'providers' | 'gateway' | 'tags' | 'stats' = 'accounts'
+  let currentView: 'accounts' | 'providers' | 'gateway' | 'tags' | 'stats' | 'sessions' = 'accounts'
   let activeTagFilter = 'all'
   let newTagName = ''
   let editingTagId: string | null = null
@@ -409,6 +425,20 @@
           <span class="i-lucide-chart-no-axes-combined h-3.5 w-3.5"></span>
           <span>{copy.tokenStats}</span>
         </button>
+        <button
+          class={`theme-view-toggle inline-flex items-center gap-1.5 rounded-[0.35rem] px-2.5 py-1.5 text-xs font-medium transition-colors duration-140 ${
+            currentView === 'sessions'
+              ? 'theme-view-toggle-active bg-black/[0.06] text-ink'
+              : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
+          }`}
+          type="button"
+          onclick={() => {
+            currentView = 'sessions'
+          }}
+        >
+          <span class="i-lucide-messages-square h-3.5 w-3.5"></span>
+          <span>{copy.sessions}</span>
+        </button>
       </div>
     </div>
   </div>
@@ -427,6 +457,18 @@
       {compactGhostButton}
       {readTokenCost}
       {updateStatsDisplay}
+    />
+  {:else if currentView === 'sessions'}
+    <SessionsView
+      {copy}
+      {language}
+      instances={codexInstances}
+      {providers}
+      {compactGhostButton}
+      {listCodexSessionProjects}
+      {listCodexSessions}
+      {readCodexSessionDetail}
+      {copyCodexSessionToProvider}
     />
   {:else if currentView === 'tags'}
     <AccountsTagsView
@@ -480,9 +522,6 @@
   {:else if currentView === 'gateway'}
     <LocalGatewayView
       {copy}
-      {iconRowButton}
-      {primaryActionButton}
-      {compactGhostButton}
       {localGatewayStatus}
       {localGatewayBusy}
       {localGatewayApiKey}

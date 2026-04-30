@@ -328,7 +328,7 @@
                     {copy.wakeScheduleTimes}
                   </span>
                   <button
-                    class="theme-select wake-icon-button inline-flex h-9 w-9 items-center justify-center rounded-[0.35rem] border border-black/10 text-xs font-medium"
+                    class="wake-icon-button"
                     type="button"
                     onclick={addTime}
                     disabled={dialogBusy()}
@@ -354,7 +354,7 @@
                           updateTime(timeIndex, (event.currentTarget as HTMLInputElement).value)}
                       />
                       <button
-                        class="theme-select wake-icon-button inline-flex h-9 w-9 items-center justify-center rounded-[0.35rem] border border-black/10 text-xs font-medium"
+                        class="wake-icon-button"
                         type="button"
                         onclick={() => removeTime(timeIndex)}
                         disabled={dialogBusy()}
@@ -526,6 +526,34 @@
   .wake-dialog-panel :global(.wake-icon-button),
   .wake-dialog-panel :global(.theme-code-surface) {
     box-shadow: none !important;
+  }
+
+  .wake-icon-button.wake-icon-button {
+    display: inline-flex !important;
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+    flex: 0 0 2.25rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    border: 1px solid var(--line-strong) !important;
+    border-radius: 0.35rem !important;
+    background: color-mix(in srgb, var(--panel-strong) 82%, var(--paper)) !important;
+    color: var(--ink) !important;
+    opacity: 1 !important;
+    box-shadow: none !important;
+  }
+
+  .wake-icon-button.wake-icon-button:hover:not(:disabled) {
+    background: var(--surface-hover) !important;
+    color: var(--ink) !important;
+  }
+
+  .wake-icon-button.wake-icon-button :global([class*='i-lucide-']) {
+    display: inline-block !important;
+    background-color: currentColor !important;
+    color: inherit !important;
+    opacity: 1 !important;
   }
 
   .wake-dialog-panel :global(.wake-dialog-field) {

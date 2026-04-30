@@ -1,4 +1,6 @@
 import { join, resolve } from 'node:path'
+import { promises as fs } from 'node:fs'
+import { parse as parseToml } from '@iarna/toml'
 
 import type { CodexAuthPayload } from './codex-auth'
 import type { PersistedCodexInstance, PersistedDefaultCodexInstance } from './codex-instances'
@@ -57,6 +59,75 @@ export function createCodexServicesInstanceRuntime(
 ): CodexServicesInstanceRuntime {
   const { store, instanceStore, providerStore, loginCoordinator } = context
   const { refreshAuthForUse, refreshStoredAuthGuarded } = authRuntime
+
+  function normalizeBaseUrl(value: string): string {
+    return value.trim().replace(/\/+$/u, '').toLowerCase()
+  }
+
+  function addUniqueProviderId(ids: string[], providerId: string): void {
+    if (!ids.includes(providerId)) {
+      ids.push(providerId)
+    }
+  }
+
+  function collectProviderIdsFromConfig(
+    config: Record<string, unknown>,
+    providers: CustomProviderSummary[]
+  ): string[] {
+    const ids: string[] = []
+    const modelProviders =
+      config.model_providers && typeof config.model_providers === 'object'
+        ? (config.model_providers as Record<string, unknown>)
+        : {}
+
+    for (const rawProvider of Object.values(modelProviders)) {
+      if (!rawProvider || typeof rawProvider !== 'object') {
+        continue
+      }
+
+      const providerConfig = rawProvider as Record<string, unknown>
+      const baseUrl = typeof providerConfig.base_url === 'string' ? providerConfig.base_url : ''
+      const name = typeof providerConfig.name === 'string' ? providerConfig.name.trim() : ''
+      const normalizedBaseUrl = normalizeBaseUrl(baseUrl)
+      const matched = providers.find((provider) => {
+        if (normalizedBaseUrl && normalizeBaseUrl(provider.baseUrl) === normalizedBaseUrl) {
+          return true
+        }
+
+        return Boolean(name && provider.name?.trim() === name)
+      })
+
+      if (matched) {
+        addUniqueProviderId(ids, matched.id)
+      }
+    }
+
+    return ids
+  }
+
+  async function resolveInstanceProviderIds(codexHome: string): Promise<string[]> {
+    const providers = await providerStore.list()
+    const ids: string[] = []
+    const normalizedCodexHome = resolve(codexHome).replace(/\\/gu, '/')
+
+    for (const provider of providers) {
+      if (normalizedCodexHome.endsWith(`/provider-${provider.id}`)) {
+        addUniqueProviderId(ids, provider.id)
+      }
+    }
+
+    try {
+      const raw = await fs.readFile(join(codexHome, 'config.toml'), 'utf8')
+      const config = raw.trim() ? (parseToml(raw) as Record<string, unknown>) : {}
+      for (const providerId of collectProviderIdsFromConfig(config, providers)) {
+        addUniqueProviderId(ids, providerId)
+      }
+    } catch {
+      // Missing or invalid config should not block instance listing.
+    }
+
+    return ids
+  }
 
   async function assertDefaultCodexLaunchAllowed(explicitAccountId?: string): Promise<void> {
     if (explicitAccountId) {
@@ -184,7 +255,8 @@ export function createCodexServicesInstanceRuntime(
       lastLaunchedAt: instance.lastLaunchedAt,
       lastPid: runningPid,
       running: Boolean(runningPid),
-      initialized: await instanceStore.isInitialized(instance.codexHome)
+      initialized: await instanceStore.isInitialized(instance.codexHome),
+      providerIds: await resolveInstanceProviderIds(instance.codexHome)
     }
   }
 
@@ -211,7 +283,8 @@ export function createCodexServicesInstanceRuntime(
       lastLaunchedAt: instance.lastLaunchedAt,
       lastPid: runningPid,
       running: Boolean(runningPid),
-      initialized: await instanceStore.isInitialized(defaultCodexHome)
+      initialized: await instanceStore.isInitialized(defaultCodexHome),
+      providerIds: await resolveInstanceProviderIds(defaultCodexHome)
     }
   }
 
