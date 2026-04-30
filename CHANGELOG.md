@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.2 - 2026-04-30
+
+This release adds session and skill management while polishing desktop motion and navigation.
+
+- Added a Sessions view so Codex sessions can be inspected and managed directly from the desktop app.
+- Added a Skills management view for scanning instance skills, reading skill details, and copying skills between Codex instances safely.
+- Hardened Skill copy operations with path-boundary and symlink checks so managed skills stay inside the intended instance directories.
+- Improved desktop motion with refined modal, panel, card, number, text, badge, dropdown, and icon transitions.
+- Polished the account workspace navigation, dialog behavior, and session iconography so the new management surfaces feel more consistent.
+
 ## 0.4.1 - 2026-04-28
 
 This patch release cleans up upgraded app data, improves startup responsiveness, and polishes account and wake workflows.
