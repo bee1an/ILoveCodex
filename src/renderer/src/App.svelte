@@ -1547,6 +1547,10 @@
               readCodexSessionDetail={(input) => window.codexApp.readCodexSessionDetail(input)}
               copyCodexSessionToProvider={(input) =>
                 window.codexApp.copyCodexSessionToProvider(input)}
+              listCodexSkills={() => window.codexApp.listCodexSkills()}
+              readCodexSkillDetail={(instanceId, skillDirName) =>
+                window.codexApp.readCodexSkillDetail(instanceId, skillDirName)}
+              copyCodexSkill={(input) => window.codexApp.copyCodexSkill(input)}
               {startLogin}
               importCurrent={() =>
                 runAction('import', () => window.codexApp.importCurrentAccount())}

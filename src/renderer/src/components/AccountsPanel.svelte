@@ -11,8 +11,12 @@
     CodexSessionDetail,
     CodexSessionProjectsResult,
     CodexSessionsResult,
+    CodexSkillDetail,
+    CodexSkillsResult,
     CopyCodexSessionToProviderInput,
     CopyCodexSessionToProviderResult,
+    CopyCodexSkillInput,
+    CopyCodexSkillResult,
     CustomProviderDetail,
     CustomProviderSummary,
     LocalGatewayStatus,
@@ -33,6 +37,7 @@
   import LocalGatewayView from './LocalGatewayView.svelte'
   import MotionNumber from './MotionNumber.svelte'
   import SessionsView from './SessionsView.svelte'
+  import SkillsView from './SkillsView.svelte'
   import { taggedAccountCount as taggedAccountCountForAccounts } from './accounts-panel-account'
   import {
     buildProviderUpdateInput,
@@ -113,10 +118,17 @@
   export let copyCodexSessionToProvider: (
     input: CopyCodexSessionToProviderInput
   ) => Promise<CopyCodexSessionToProviderResult>
+  export let listCodexSkills: () => Promise<CodexSkillsResult>
+  export let readCodexSkillDetail: (
+    instanceId: string,
+    skillDirName: string
+  ) => Promise<CodexSkillDetail>
+  export let copyCodexSkill: (input: CopyCodexSkillInput) => Promise<CopyCodexSkillResult>
   export let startLogin: (method: 'browser' | 'device') => void
   export let importCurrent: () => void
 
-  let currentView: 'accounts' | 'providers' | 'gateway' | 'tags' | 'stats' | 'sessions' = 'accounts'
+  let currentView: 'accounts' | 'providers' | 'gateway' | 'tags' | 'stats' | 'sessions' | 'skills' =
+    'accounts'
   let activeTagFilter = 'all'
   let newTagName = ''
   let editingTagId: string | null = null
@@ -445,6 +457,20 @@
           <span class="i-lucide-messages-square h-3.5 w-3.5"></span>
           <span>{copy.sessions}</span>
         </button>
+        <button
+          class={`theme-view-toggle inline-flex items-center gap-1.5 rounded-[0.35rem] px-2.5 py-1.5 text-xs font-medium transition-colors duration-140 ${
+            currentView === 'skills'
+              ? 'theme-view-toggle-active bg-black/[0.06] text-ink'
+              : 'theme-view-toggle-idle bg-transparent text-black/60 hover:bg-black/[0.04]'
+          }`}
+          type="button"
+          onclick={() => {
+            currentView = 'skills'
+          }}
+        >
+          <span class="i-lucide-puzzle h-3.5 w-3.5"></span>
+          <span>{copy.skills}</span>
+        </button>
       </div>
     </div>
   </div>
@@ -475,6 +501,14 @@
       {listCodexSessions}
       {readCodexSessionDetail}
       {copyCodexSessionToProvider}
+    />
+  {:else if currentView === 'skills'}
+    <SkillsView
+      {copy}
+      instances={codexInstances}
+      {listCodexSkills}
+      {readCodexSkillDetail}
+      {copyCodexSkill}
     />
   {:else if currentView === 'tags'}
     <AccountsTagsView

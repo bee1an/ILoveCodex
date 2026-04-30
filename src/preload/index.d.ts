@@ -9,11 +9,15 @@ import type {
   AppUpdateState,
   CopyCodexSessionToProviderInput,
   CopyCodexSessionToProviderResult,
+  CopyCodexSkillInput,
+  CopyCodexSkillResult,
   CreateCustomProviderInput,
   CustomProviderDetail,
   CodexSessionDetail,
   CodexSessionProjectsResult,
   CodexSessionsResult,
+  CodexSkillDetail,
+  CodexSkillsResult,
   ListCodexSessionProjectsInput,
   ListCodexSessionsInput,
   ReadCodexSessionDetailInput,
@@ -82,6 +86,9 @@ interface CodexDesktopApi {
   copyCodexSessionToProvider: (
     input: CopyCodexSessionToProviderInput
   ) => Promise<CopyCodexSessionToProviderResult>
+  listCodexSkills: () => Promise<CodexSkillsResult>
+  readCodexSkillDetail: (instanceId: string, skillDirName: string) => Promise<CodexSkillDetail>
+  copyCodexSkill: (input: CopyCodexSkillInput) => Promise<CopyCodexSkillResult>
   getLocalGatewayStatus: () => Promise<LocalGatewayStatus>
   startLocalGateway: () => Promise<AppSnapshot>
   stopLocalGateway: () => Promise<AppSnapshot>

@@ -9,11 +9,15 @@ import type {
   AppUpdateState,
   CopyCodexSessionToProviderInput,
   CopyCodexSessionToProviderResult,
+  CopyCodexSkillInput,
+  CopyCodexSkillResult,
   CreateCustomProviderInput,
   CustomProviderDetail,
   CodexSessionDetail,
   CodexSessionProjectsResult,
   CodexSessionsResult,
+  CodexSkillDetail,
+  CodexSkillsResult,
   ListCodexSessionProjectsInput,
   ListCodexSessionsInput,
   ReadCodexSessionDetailInput,
@@ -93,6 +97,11 @@ const codexApp = {
     input: CopyCodexSessionToProviderInput
   ): Promise<CopyCodexSessionToProviderResult> =>
     ipcRenderer.invoke('codex:copy-session-to-provider', input),
+  listCodexSkills: (): Promise<CodexSkillsResult> => ipcRenderer.invoke('codex:list-skills'),
+  readCodexSkillDetail: (instanceId: string, skillDirName: string): Promise<CodexSkillDetail> =>
+    ipcRenderer.invoke('codex:read-skill-detail', instanceId, skillDirName),
+  copyCodexSkill: (input: CopyCodexSkillInput): Promise<CopyCodexSkillResult> =>
+    ipcRenderer.invoke('codex:copy-skill', input),
   getLocalGatewayStatus: () => ipcRenderer.invoke('codex:get-local-gateway-status'),
   startLocalGateway: () => ipcRenderer.invoke('codex:start-local-gateway'),
   stopLocalGateway: () => ipcRenderer.invoke('codex:stop-local-gateway'),

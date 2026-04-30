@@ -43,6 +43,7 @@ import {
   listCodexSessions,
   readCodexSessionDetail
 } from './codex-sessions'
+import { createCodexSkillService } from './codex-skills'
 import { CodexLocalGatewayService } from './local-gateway'
 
 export type { CodexServices, CreateCodexServicesOptions } from './codex-services-shared'
@@ -96,6 +97,8 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
     listInstances: () => instanceRuntime.listCodexInstances()
   })
   const diagnosticsRuntime = createCodexServicesDiagnosticsRuntime(context, instanceRuntime)
+  const skillService = createCodexSkillService()
+
   const localGatewayService = new CodexLocalGatewayService({
     store,
     providerStore,
@@ -587,6 +590,12 @@ export function createCodexServices(options: CreateCodexServicesOptions): CodexS
         },
         stop: stopInstance
       }
+    },
+    skill: {
+      list: async () => skillService.list(await listCodexInstances()),
+      detail: async (instanceId, skillDirName) =>
+        skillService.detail(await listCodexInstances(), instanceId, skillDirName),
+      copy: async (input) => skillService.copy(await listCodexInstances(), input)
     }
   }
 }

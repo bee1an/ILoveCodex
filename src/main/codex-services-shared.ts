@@ -22,8 +22,12 @@ import {
   type CodexSessionDetail,
   type CodexSessionProjectsResult,
   type CodexSessionsResult,
+  type CodexSkillDetail,
+  type CodexSkillsResult,
   type CopyCodexSessionToProviderInput,
   type CopyCodexSessionToProviderResult,
+  type CopyCodexSkillInput,
+  type CopyCodexSkillResult,
   type CreateCodexInstanceInput,
   type CreateCustomProviderInput,
   type CurrentSessionSummary,
@@ -380,6 +384,11 @@ export interface CodexServices {
       start(instanceId: string, workspacePath?: string): Promise<CodexInstanceSummary>
       stop(instanceId: string): Promise<CodexInstanceSummary>
     }
+  }
+  skill: {
+    list(): Promise<CodexSkillsResult>
+    detail(instanceId: string, skillDirName: string): Promise<CodexSkillDetail>
+    copy(input: CopyCodexSkillInput): Promise<CopyCodexSkillResult>
   }
 }
 

@@ -415,6 +415,38 @@ export interface TokenCostReadOptions {
   refresh?: boolean
 }
 
+export interface CodexSkillSummary {
+  instanceId: string
+  instanceName: string
+  codexHome: string
+  skillDirName: string
+  name: string
+  description: string
+  filePath: string
+}
+
+export interface CodexSkillDetail extends CodexSkillSummary {
+  content: string
+}
+
+export interface CodexSkillsResult {
+  skills: CodexSkillSummary[]
+  errorsByInstanceId: Record<string, string>
+  scannedAt: string
+}
+
+export interface CopyCodexSkillInput {
+  sourceInstanceId: string
+  sourceSkillDirName: string
+  targetInstanceIds: string[]
+}
+
+export interface CopyCodexSkillResult {
+  copied: Array<{ targetInstanceId: string; targetInstanceName: string }>
+  skipped: Array<{ targetInstanceId: string; targetInstanceName: string; reason: string }>
+  failed: Array<{ targetInstanceId: string; targetInstanceName: string; error: string }>
+}
+
 interface LocalMockAccountIdentity {
   email?: string
   accountId?: string

@@ -39,6 +39,7 @@ import {
   type AppSettings,
   type AppSnapshot,
   type CopyCodexSessionToProviderInput,
+  type CopyCodexSkillInput,
   type LoginEvent,
   type LoginMethod,
   type ListCodexSessionProjectsInput,
@@ -901,6 +902,13 @@ app.whenReady().then(async () => {
   )
   ipcMain.handle('codex:copy-session-to-provider', (_, input: CopyCodexSessionToProviderInput) =>
     codexServices.session.copyToProvider(input)
+  )
+  ipcMain.handle('codex:list-skills', () => codexServices.skill.list())
+  ipcMain.handle('codex:read-skill-detail', (_, instanceId: string, skillDirName: string) =>
+    codexServices.skill.detail(instanceId, skillDirName)
+  )
+  ipcMain.handle('codex:copy-skill', (_, input: CopyCodexSkillInput) =>
+    codexServices.skill.copy(input)
   )
   ipcMain.handle('codex:get-local-gateway-status', () => codexServices.gateway.status())
   ipcMain.handle('codex:start-local-gateway', async () => {
