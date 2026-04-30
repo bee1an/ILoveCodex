@@ -9,13 +9,7 @@
     AppTheme,
     LoginMethod
   } from '../../../shared/codex'
-  import {
-    accountEmail,
-    nextTheme,
-    themeIconClass,
-    themeTitle,
-    type LocalizedCopy
-  } from './app-view'
+  import { accountEmail, nextTheme, themeTitle, type LocalizedCopy } from './app-view'
   import FloatingSelect from './FloatingSelect.svelte'
 
   type ThemeTransitionOrigin = {
@@ -79,7 +73,9 @@
     Math.min(Math.max(value, min), max)
 
   const prefersReducedToolbarMotion = (): boolean =>
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   const toolbarRailTransition = (): TransitionConfig => {
     const reduceMotion = prefersReducedToolbarMotion()
@@ -296,15 +292,19 @@
         <span class="i-lucide-file-down h-4.5 w-4.5"></span>
       </button>
       <button
-        class={`${iconToolbarButton} theme-sider-tool-button`}
+        class={`${iconToolbarButton} theme-sider-tool-button relative`}
         on:click={refreshAllRateLimits}
         disabled={loginActionBusy || refreshingAllUsage}
         aria-label={copy.refreshAllQuota}
         title={copy.refreshAllQuota}
       >
-        <span
-          class={`${refreshingAllUsage ? 'i-lucide-loader-circle animate-spin' : 'i-lucide-refresh-cw'} h-4.5 w-4.5`}
-        ></span>
+        <span class="t-icon-swap h-4.5 w-4.5" data-state={refreshingAllUsage ? 'b' : 'a'}>
+          <span class="t-icon i-lucide-refresh-cw h-4.5 w-4.5" data-icon="a"></span>
+          <span class="t-icon i-lucide-loader-circle h-4.5 w-4.5 animate-spin" data-icon="b"></span>
+        </span>
+        <span class="t-badge" data-open={refreshingAllUsage ? 'true' : 'false'} aria-hidden="true">
+          <span class="t-badge-dot h-2 w-2 rounded-full bg-success"></span>
+        </span>
       </button>
       <button
         class={`${iconToolbarButton} theme-sider-tool-button`}
@@ -325,9 +325,10 @@
         aria-label={copy.createProvider}
         title={copy.createProvider}
       >
-        <span
-          class={`${showProviderComposer ? 'i-lucide-panel-top-close' : 'i-lucide-plug-zap'} h-4.5 w-4.5`}
-        ></span>
+        <span class="t-icon-swap h-4.5 w-4.5" data-state={showProviderComposer ? 'b' : 'a'}>
+          <span class="t-icon i-lucide-plug-zap h-4.5 w-4.5" data-icon="a"></span>
+          <span class="t-icon i-lucide-panel-top-close h-4.5 w-4.5" data-icon="b"></span>
+        </span>
       </button>
       <button
         class={`${iconToolbarButton} theme-sider-tool-button`}
@@ -360,7 +361,13 @@
         aria-label={copy.switchTheme(themeTitle(theme, copy))}
         title={copy.switchTheme(themeTitle(theme, copy))}
       >
-        <span class={`${themeIconClass(theme)} h-4.5 w-4.5`}></span>
+        <span class="t-icon-swap h-4.5 w-4.5" data-state={theme === 'dark' ? 'b' : 'a'}>
+          <span
+            class={`t-icon ${theme === 'system' ? 'i-lucide-monitor' : 'i-lucide-sun-medium'} h-4.5 w-4.5`}
+            data-icon="a"
+          ></span>
+          <span class="t-icon i-lucide-moon-star h-4.5 w-4.5" data-icon="b"></span>
+        </span>
       </button>
 
       <button

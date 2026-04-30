@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte'
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte'
 
   import { cascadeIn, reveal } from './gsap-motion'
 
@@ -12,9 +12,63 @@
 
   const dispatch = createEventDispatcher<{ close: void }>()
 
-  function requestClose(): void {
-    dispatch('close')
+  type ModalMotionState = 'closed' | 'open' | 'closing'
+
+  let modalMotionState: ModalMotionState = 'closed'
+  let closeTimer: number | null = null
+  let openFrame: number | null = null
+
+  $: modalMotionClass =
+    modalMotionState === 'open' ? 'is-open' : modalMotionState === 'closing' ? 'is-closing' : ''
+
+  const modalCloseDurationMs = (): number => {
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return 0
+    }
+
+    return (
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--modal-close-dur')
+      ) || 150
+    )
   }
+
+  const clearMotionTimers = (): void => {
+    if (closeTimer != null) {
+      window.clearTimeout(closeTimer)
+      closeTimer = null
+    }
+    if (openFrame != null) {
+      window.cancelAnimationFrame(openFrame)
+      openFrame = null
+    }
+  }
+
+  function requestClose(): void {
+    if (modalMotionState === 'closing') {
+      return
+    }
+
+    clearMotionTimers()
+    modalMotionState = 'closing'
+    closeTimer = window.setTimeout(() => {
+      closeTimer = null
+      dispatch('close')
+    }, modalCloseDurationMs())
+  }
+
+  onMount(() => {
+    openFrame = window.requestAnimationFrame(() => {
+      openFrame = null
+      modalMotionState = 'open'
+    })
+  })
+
+  onDestroy(clearMotionTimers)
 </script>
 
 <div
@@ -34,13 +88,12 @@
   }}
 >
   <div
-    class={`theme-surface w-full ${maxWidthClass} rounded-[1.25rem] border border-black/8 bg-white p-5 shadow-[0_24px_70px_-42px_var(--paper-shadow)] sm:p-6 ${panelClass}`}
+    class={`theme-surface t-modal ${modalMotionClass} w-full ${maxWidthClass} rounded-[1.25rem] border border-black/8 bg-white p-5 shadow-[0_24px_70px_-42px_var(--paper-shadow)] sm:p-6 ${panelClass}`}
     role="dialog"
     aria-modal="true"
     aria-label={ariaLabel || undefined}
     aria-labelledby={ariaLabel ? undefined : ariaLabelledby || undefined}
     tabindex="-1"
-    use:reveal={{ delay: 0.05 }}
     use:cascadeIn={{ selector: '[data-dialog-motion]' }}
   >
     <slot />

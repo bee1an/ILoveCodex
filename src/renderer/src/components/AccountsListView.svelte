@@ -1,6 +1,6 @@
 <script lang="ts">
   import { flip } from 'svelte/animate'
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import { fly } from 'svelte/transition'
   import {
     dragHandle,
@@ -98,6 +98,11 @@
   let sortableAccounts: AccountSummary[] = []
   let sortInteractionActive = false
   let sortDraggedAccountId = ''
+  let accountWorkbenchRendered = accountWorkbenchExpanded
+  let accountWorkbenchPanelOpen = accountWorkbenchExpanded
+  let lastAccountWorkbenchExpanded = accountWorkbenchExpanded
+  let accountWorkbenchCloseTimer: number | null = null
+  let accountWorkbenchOpenFrame: number | null = null
 
   $: if (
     activeTagFilter !== 'all' &&
@@ -118,6 +123,15 @@
 
   $: if (!sortInteractionActive) {
     sortableAccounts = visibleAccounts
+  }
+
+  $: if (accountWorkbenchExpanded !== lastAccountWorkbenchExpanded) {
+    lastAccountWorkbenchExpanded = accountWorkbenchExpanded
+    if (accountWorkbenchExpanded) {
+      openAccountWorkbenchPanel()
+    } else {
+      closeAccountWorkbenchPanel()
+    }
   }
 
   $: selectedVisibleCount = selectedAccountIds.length
@@ -262,6 +276,57 @@
     selectedAccountIds = selectedAccountIds.filter(
       (selectedAccountId) => selectedAccountId !== accountId
     )
+  }
+
+  function panelCloseDurationMs(): number {
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return 0
+    }
+
+    return (
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--panel-close-dur')
+      ) || 350
+    )
+  }
+
+  function clearAccountWorkbenchMotionTimers(): void {
+    if (accountWorkbenchCloseTimer != null) {
+      window.clearTimeout(accountWorkbenchCloseTimer)
+      accountWorkbenchCloseTimer = null
+    }
+    if (accountWorkbenchOpenFrame != null) {
+      window.cancelAnimationFrame(accountWorkbenchOpenFrame)
+      accountWorkbenchOpenFrame = null
+    }
+  }
+
+  function openAccountWorkbenchPanel(): void {
+    clearAccountWorkbenchMotionTimers()
+    accountWorkbenchRendered = true
+    accountWorkbenchPanelOpen = false
+    accountWorkbenchOpenFrame = window.requestAnimationFrame(() => {
+      accountWorkbenchOpenFrame = null
+      accountWorkbenchPanelOpen = true
+    })
+  }
+
+  function closeAccountWorkbenchPanel(): void {
+    if (!accountWorkbenchRendered) {
+      accountWorkbenchPanelOpen = false
+      return
+    }
+
+    clearAccountWorkbenchMotionTimers()
+    accountWorkbenchPanelOpen = false
+    accountWorkbenchCloseTimer = window.setTimeout(() => {
+      accountWorkbenchCloseTimer = null
+      accountWorkbenchRendered = false
+    }, panelCloseDurationMs())
   }
 
   async function exportCurrentSelection(): Promise<void> {
@@ -439,6 +504,8 @@
       window.removeEventListener('scroll', handleScroll, true)
     }
   })
+
+  onDestroy(clearAccountWorkbenchMotionTimers)
 </script>
 
 <svelte:window
@@ -506,8 +573,13 @@
     </span>
   </button>
 
-  {#if accountWorkbenchExpanded}
-    <div id="account-workbench-panel" class="grid gap-2 px-2 pb-2 pt-1">
+  {#if accountWorkbenchRendered}
+    <div
+      id="account-workbench-panel"
+      class="t-panel-slide grid gap-2 px-2 pb-2 pt-1"
+      data-open={accountWorkbenchPanelOpen ? 'true' : 'false'}
+      style="--panel-translate-y: 12px;"
+    >
       {#if showAccountFilterTools}
         <div class="grid gap-1.5">
           <p class="text-[10px] font-medium uppercase tracking-[0.08em] text-faint">

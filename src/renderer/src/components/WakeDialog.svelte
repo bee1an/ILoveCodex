@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte'
+  import { onDestroy, onMount, tick } from 'svelte'
 
   import type {
     AccountWakeSchedule,
@@ -42,6 +42,54 @@
   export let onDeleteSchedule: () => void | Promise<void> = () => {}
 
   let logPanel: HTMLPreElement | null = null
+  type ModalMotionState = 'closed' | 'open' | 'closing'
+
+  let modalMotionState: ModalMotionState = 'closed'
+  let closeTimer: number | null = null
+  let openFrame: number | null = null
+
+  $: modalMotionClass =
+    modalMotionState === 'open' ? 'is-open' : modalMotionState === 'closing' ? 'is-closing' : ''
+
+  const modalCloseDurationMs = (): number => {
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return 0
+    }
+
+    return (
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--modal-close-dur')
+      ) || 150
+    )
+  }
+
+  const clearMotionTimers = (): void => {
+    if (closeTimer != null) {
+      window.clearTimeout(closeTimer)
+      closeTimer = null
+    }
+    if (openFrame != null) {
+      window.cancelAnimationFrame(openFrame)
+      openFrame = null
+    }
+  }
+
+  const requestClose = (): void => {
+    if (dialogBusy() || modalMotionState === 'closing') {
+      return
+    }
+
+    clearMotionTimers()
+    modalMotionState = 'closing'
+    closeTimer = window.setTimeout(() => {
+      closeTimer = null
+      onClose()
+    }, modalCloseDurationMs())
+  }
 
   const statusToneClass = (value: typeof sessionStatus): string => {
     switch (value) {
@@ -121,6 +169,15 @@
       logPanel?.scrollTo({ top: logPanel.scrollHeight })
     })
   }
+
+  onMount(() => {
+    openFrame = window.requestAnimationFrame(() => {
+      openFrame = null
+      modalMotionState = 'open'
+    })
+  })
+
+  onDestroy(clearMotionTimers)
 </script>
 
 <div
@@ -128,8 +185,7 @@
   use:reveal={{ y: 0, scale: 1, blur: 0, duration: 0.18 }}
 >
   <div
-    class="theme-surface wake-dialog-panel flex w-full max-w-4xl flex-col overflow-hidden rounded-[0.65rem] border border-black/8 bg-white p-4 md:p-5"
-    use:reveal={{ delay: 0.05 }}
+    class={`theme-surface t-modal ${modalMotionClass} wake-dialog-panel flex w-full max-w-4xl flex-col overflow-hidden rounded-[0.65rem] border border-black/8 bg-white p-4 md:p-5`}
     use:cascadeIn={{
       selector: '[data-wake-motion]'
     }}
@@ -283,7 +339,7 @@
             <button
               class={compactGhostButton}
               type="button"
-              onclick={onClose}
+              onclick={requestClose}
               disabled={dialogBusy()}
             >
               {copy.cancel}
@@ -457,7 +513,7 @@
               <button
                 class={compactGhostButton}
                 type="button"
-                onclick={onClose}
+                onclick={requestClose}
                 disabled={dialogBusy()}
               >
                 {copy.cancel}

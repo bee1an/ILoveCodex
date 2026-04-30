@@ -31,6 +31,7 @@
   import Checkbox from './Checkbox.svelte'
   import CostStatsView from './CostStatsView.svelte'
   import LocalGatewayView from './LocalGatewayView.svelte'
+  import MotionNumber from './MotionNumber.svelte'
   import SessionsView from './SessionsView.svelte'
   import { taggedAccountCount as taggedAccountCountForAccounts } from './accounts-panel-account'
   import {
@@ -347,8 +348,11 @@
       {/if}
 
       {#if updateActionLabel}
-        <button class={compactGhostButton} type="button" onclick={runUpdateAction}>
+        <button class={`${compactGhostButton} relative`} type="button" onclick={runUpdateAction}>
           {updateActionLabel}
+          <span class="t-badge" data-open="true" aria-hidden="true">
+            <span class="t-badge-dot h-2 w-2 rounded-full bg-success"></span>
+          </span>
         </button>
       {/if}
 
@@ -365,9 +369,10 @@
           onclick={() => {
             currentView = 'accounts'
           }}
+          aria-label={copy.accountCount(accounts.length)}
         >
           <span class="i-lucide-layout-list h-3.5 w-3.5"></span>
-          <span>{copy.accountCount(accounts.length)}</span>
+          <MotionNumber value={accounts.length} label={copy.accountCount(accounts.length)} />
         </button>
         <button
           class={`theme-view-toggle inline-flex items-center gap-1.5 rounded-[0.35rem] px-2.5 py-1.5 text-xs font-medium transition-colors duration-140 ${
@@ -379,9 +384,10 @@
           onclick={() => {
             currentView = 'providers'
           }}
+          aria-label={copy.providerCount(providers.length)}
         >
           <span class="i-lucide-plug-zap h-3.5 w-3.5"></span>
-          <span>{copy.providerCount(providers.length)}</span>
+          <MotionNumber value={providers.length} label={copy.providerCount(providers.length)} />
         </button>
         <button
           class={`theme-view-toggle inline-flex items-center gap-1.5 rounded-[0.35rem] px-2.5 py-1.5 text-xs font-medium transition-colors duration-140 ${

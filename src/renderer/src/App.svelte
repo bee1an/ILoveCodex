@@ -54,6 +54,7 @@
 
   type WakeDialogStatus = 'idle' | 'running' | 'success' | 'skipped' | 'error'
   type WakeDialogTab = 'session' | 'schedule'
+  type TransitionMotionState = 'closed' | 'open' | 'closing'
   type ThemeTransitionOrigin = {
     x?: number
     y?: number
@@ -153,6 +154,10 @@
   let wakeRequestError = ''
   let wakeRawResponseBody = ''
   let showExportFormatDialog = false
+  let renderExportFormatDialog = false
+  let exportDialogMotionState: TransitionMotionState = 'closed'
+  let exportDialogCloseTimer: number | null = null
+  let exportDialogOpenFrame: number | null = null
   let exportDialogBusy = false
   let exportDialogError = ''
   let exportDialogAccountIds: string[] | null = null
@@ -194,7 +199,9 @@
     theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme
 
   const prefersReducedMotion = (): boolean =>
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   const themeTransitionPoint = (
     origin?: ThemeTransitionOrigin
@@ -306,6 +313,69 @@
     exportDialogAccountIds?.length
       ? copyForLanguage().exportFormatTargetSelected(exportDialogAccountIds.length)
       : copyForLanguage().exportFormatTargetAll
+
+  const modalCloseDurationMs = (): number => {
+    if (prefersReducedMotion() || typeof document === 'undefined') {
+      return 0
+    }
+
+    return (
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--modal-close-dur')
+      ) || 150
+    )
+  }
+
+  const clearExportDialogTimers = (): void => {
+    if (exportDialogCloseTimer != null) {
+      window.clearTimeout(exportDialogCloseTimer)
+      exportDialogCloseTimer = null
+    }
+    if (exportDialogOpenFrame != null) {
+      window.cancelAnimationFrame(exportDialogOpenFrame)
+      exportDialogOpenFrame = null
+    }
+  }
+
+  const resetExportDialog = (): void => {
+    exportDialogError = ''
+    exportDialogAccountIds = null
+    exportDialogFormat = 'codexdock'
+  }
+
+  const finishExportFormatDialogClose = (): void => {
+    renderExportFormatDialog = false
+    exportDialogMotionState = 'closed'
+    exportDialogCloseTimer = null
+    resetExportDialog()
+  }
+
+  const openExportDialogMotion = (): void => {
+    clearExportDialogTimers()
+    renderExportFormatDialog = true
+    showExportFormatDialog = true
+    exportDialogMotionState = 'closed'
+    exportDialogOpenFrame = window.requestAnimationFrame(() => {
+      exportDialogOpenFrame = null
+      exportDialogMotionState = 'open'
+    })
+  }
+
+  const closeExportDialogMotion = (): void => {
+    if (!renderExportFormatDialog) {
+      showExportFormatDialog = false
+      resetExportDialog()
+      return
+    }
+
+    clearExportDialogTimers()
+    showExportFormatDialog = false
+    exportDialogMotionState = 'closing'
+    exportDialogCloseTimer = window.setTimeout(
+      finishExportFormatDialogClose,
+      modalCloseDurationMs()
+    )
+  }
 
   const toolbarDialogOpen = (): boolean =>
     showSettings ||
@@ -766,10 +836,7 @@
       return
     }
 
-    showExportFormatDialog = false
-    exportDialogError = ''
-    exportDialogAccountIds = null
-    exportDialogFormat = 'codexdock'
+    closeExportDialogMotion()
   }
 
   const openExportFormatDialog = (accountIds?: string[]): void => {
@@ -781,11 +848,11 @@
     exportDialogAccountIds = uniqueIds
     exportDialogFormat = 'codexdock'
     exportDialogError = ''
-    showExportFormatDialog = true
+    openExportDialogMotion()
   }
 
   const submitExportFormatDialog = async (): Promise<void> => {
-    if (exportDialogBusy) {
+    if (exportDialogBusy || exportDialogMotionState === 'closing' || !showExportFormatDialog) {
       return
     }
 
@@ -800,10 +867,7 @@
           )
         : await window.codexApp.exportAccountsToFile(exportDialogFormat)
       applySnapshot(nextSnapshot)
-      showExportFormatDialog = false
-      exportDialogError = ''
-      exportDialogAccountIds = null
-      exportDialogFormat = 'codexdock'
+      closeExportDialogMotion()
     } catch (error) {
       exportDialogError = localizeKnownError(error, copyForLanguage().actionFailed)
     } finally {
@@ -1339,6 +1403,7 @@
       disposeSnapshot()
       disposeUpdateState()
       disposeLogin()
+      clearExportDialogTimers()
     }
   })
 </script>
@@ -1582,7 +1647,7 @@
   </div>
 </div>
 
-{#if showExportFormatDialog}
+{#if renderExportFormatDialog}
   <div
     class="fixed inset-0 z-[60] flex items-center justify-center bg-black/38 px-4 py-6"
     role="presentation"
@@ -1599,8 +1664,7 @@
     }}
   >
     <div
-      class="theme-surface w-full max-w-xl rounded-[1.25rem] border border-black/8 bg-white p-5 sm:p-6"
-      use:reveal={{ delay: 0.05 }}
+      class={`theme-surface t-modal ${exportDialogMotionState === 'open' ? 'is-open' : exportDialogMotionState === 'closing' ? 'is-closing' : ''} w-full max-w-xl rounded-[1.25rem] border border-black/8 bg-white p-5 sm:p-6`}
       use:cascadeIn={{
         selector: '[data-motion-item]'
       }}
@@ -1748,12 +1812,6 @@
 
   :global(::view-transition-new(root)) {
     z-index: 1;
-  }
-
-  :global(.app-shell *),
-  :global(.app-shell *::before),
-  :global(.app-shell *::after) {
-    transition-duration: 0ms !important;
   }
 
   .app-shell {

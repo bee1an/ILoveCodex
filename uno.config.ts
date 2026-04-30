@@ -33,7 +33,13 @@ export default defineConfig({
     'bg-white',
     'i-lucide-moon-star',
     'i-lucide-monitor',
-    'i-lucide-sun-medium'
+    'i-lucide-sun-medium',
+    'i-lucide-user-round',
+    'i-lucide-bot',
+    'i-lucide-settings-2',
+    'i-lucide-code-2',
+    'i-lucide-wrench',
+    'i-lucide-message-circle'
   ],
   presets: [
     presetWind3(),

@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { fly } from 'svelte/transition'
-  import { createEventDispatcher, onMount } from 'svelte'
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte'
   import {
     eventTargetsFloatingRoot,
     floatingAnchor,
@@ -30,13 +29,80 @@
 
   let triggerNode: HTMLButtonElement | null = null
   let open = false
+  let renderMenu = false
   let anchorRect: DOMRect | null = null
+  type DropdownMotionState = 'closed' | 'open' | 'closing'
+
+  let dropdownMotionState: DropdownMotionState = 'closed'
+  let closeTimer: number | null = null
+  let openFrame: number | null = null
 
   $: selectedOption = options.find((option) => option.value === value) ??
     options[0] ?? {
       value: '',
       label: ''
     }
+
+  $: dropdownMotionClass =
+    dropdownMotionState === 'open'
+      ? 'is-open'
+      : dropdownMotionState === 'closing'
+        ? 'is-closing'
+        : ''
+
+  const dropdownCloseDurationMs = (): number => {
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return 0
+    }
+
+    return (
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--dropdown-close-dur')
+      ) || 150
+    )
+  }
+
+  const clearDropdownTimers = (): void => {
+    if (closeTimer != null) {
+      window.clearTimeout(closeTimer)
+      closeTimer = null
+    }
+    if (openFrame != null) {
+      window.cancelAnimationFrame(openFrame)
+      openFrame = null
+    }
+  }
+
+  const openDropdown = (): void => {
+    clearDropdownTimers()
+    renderMenu = true
+    dropdownMotionState = 'closed'
+    openFrame = window.requestAnimationFrame(() => {
+      openFrame = null
+      dropdownMotionState = 'open'
+    })
+  }
+
+  const closeDropdown = (): void => {
+    if (!renderMenu) {
+      dropdownMotionState = 'closed'
+      anchorRect = null
+      return
+    }
+
+    clearDropdownTimers()
+    dropdownMotionState = 'closing'
+    closeTimer = window.setTimeout(() => {
+      closeTimer = null
+      renderMenu = false
+      dropdownMotionState = 'closed'
+      anchorRect = null
+    }, dropdownCloseDurationMs())
+  }
 
   function refreshAnchorRect(): void {
     anchorRect = triggerNode?.getBoundingClientRect() ?? null
@@ -49,11 +115,16 @@
 
     refreshAnchorRect()
     open = true
+    openDropdown()
   }
 
   function closeMenu(): void {
+    if (!open && !renderMenu) {
+      return
+    }
+
     open = false
-    anchorRect = null
+    closeDropdown()
   }
 
   function toggleMenu(): void {
@@ -121,6 +192,8 @@
       window.removeEventListener('keydown', handleKeydown)
     }
   })
+
+  onDestroy(clearDropdownTimers)
 </script>
 
 <div class="relative" use:stopFloatingPointerPropagation data-floating-root="">
@@ -139,14 +212,14 @@
     <span class="block truncate text-center">{selectedOption.label}</span>
   </button>
 
-  {#if open}
+  {#if renderMenu}
     <div
       use:portal
       use:floatingAnchor={{ anchorRect, matchAnchorWidth: true }}
       use:stopFloatingPointerPropagation
       data-floating-root=""
-      transition:fly={{ y: -6, duration: 200 }}
-      class={menuClass}
+      data-origin="top-left"
+      class={`${menuClass} t-dropdown ${dropdownMotionClass}`}
       style="background-color: var(--panel-strong); box-shadow: var(--elevation-2), 0 0 0 1px var(--line-strong);"
     >
       <div role="listbox" aria-label={ariaLabel} class="grid gap-0.5">
